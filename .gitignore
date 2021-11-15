@@ -1,0 +1,9 @@
+# folder for c objects
+obj/**
+
+# produces executables
+client
+server
+
+# personal
+.vscode/
