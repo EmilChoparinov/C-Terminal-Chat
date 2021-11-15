@@ -42,6 +42,9 @@ void apim_add_param(char *s, char *param, int argc) {
 
 char *apim_create() {
     char *msg = malloc(sizeof(char) * 4096);
+
+    memset(msg, '\0', sizeof(char) * 4096);
+
     return msg;
 }
 
@@ -68,13 +71,21 @@ char *apim_read_param(char *s, int argc) {
         pipe_account = 0;
     }
 
+    log_debug("apim_read_param", "param bounds for arg %d is (%d-%d)", argc,
+              end_pos, arg_start_pos);
+
     char *param =
         malloc(sizeof(char) * (end_pos - arg_start_pos - pipe_account) + 1);
-    memset(param, 0, (end_pos - arg_start_pos - pipe_account));
+    memset(param, '\0',
+           sizeof(char) * (end_pos - arg_start_pos - pipe_account) + 1);
 
     for (int i = arg_start_pos; i < end_pos - pipe_account; i++) {
         param[i - arg_start_pos] = s[i];
     }
+
+    log_debug("apim_read_param",
+              "added %d amount of chars to arg %d with output of \"%s\"",
+              end_pos - arg_start_pos - pipe_account, argc, param);
 
     return param;
 }
@@ -109,9 +120,15 @@ char **apim_parse_args(char *s) {
         int   k = strlen(param);
         log_debug("apim_parse_args", "parsing arg %d as: %s", i, param);
         log_debug("apim_parse_args", "arg %d is strlen of: %d", i, k);
-        parsed_args[i] = malloc(sizeof(char) * strlen(param));
         parsed_args[i] = param;
     }
 
     return parsed_args;
+}
+
+void apim_free_args(char **args, int argc) {
+    for (int i = 0; i < argc; i++) {
+        free(args[i]);
+    }
+    free(args);
 }

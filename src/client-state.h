@@ -8,9 +8,36 @@
  *
  */
 struct client_state {
-    int                connection_fd;
-    char*              ipv4_hostname;
+    /**
+     * @brief file descriptor connecting to the server
+     *
+     */
+    int connection_fd;
+
+    /**
+     * @brief if the client is currently connected to the server. 0 = yes,
+     * -1 = no
+     *
+     */
+    int connected;
+
+    /**
+     * @brief hostname in ipv4 format, for display purposes
+     *
+     */
+    char* ipv4_hostname;
+
+    /**
+     * @brief server connection information
+     *
+     */
     struct sockaddr_in serv;
 } cs_state;
+
+/**
+ * @brief Reset the client state
+ *
+ */
+void cs_reset();
 
 #endif

@@ -29,6 +29,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    log_set_debug_mode(0);
+    cs_reset();
+
     setup_server_connection(port, argv[1]);
     if (do_server_connection() != 0) {
         return 1;
@@ -37,6 +40,8 @@ int main(int argc, char **argv) {
     printf("Connected to %s:%d\n", cs_state.ipv4_hostname, port);
     cmdc_setup_client_commands();
     establish_server_listener();
+
+    close(cs_state.connection_fd);
 
     return 0;
 }
@@ -83,6 +88,20 @@ static void establish_server_listener() {
         }
 
         char message[4096] = "";
+        if (FD_ISSET(cs_state.connection_fd, &readfds)) {
+            int n = recv(cs_state.connection_fd, message, sizeof(message), 0);
+            if (n < 0) {
+                printf("error on reading");
+            } else {
+                int should_exit = cmdc_execute_server_command(message);
+                if (should_exit != 0) {
+                    return;
+                }
+                // printf("%s", message);
+            }
+        }
+
+        char *api_msg;
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
             fgets(message, sizeof(message), stdin);
             utils_clear_newlines(message);
@@ -92,7 +111,7 @@ static void establish_server_listener() {
                     return;
                 }
             } else {
-                char *api_msg = apim_create();
+                api_msg = apim_create();
                 apim_add_param(api_msg, "GLOBAL", 0);
                 apim_add_param(api_msg, message, 1);
                 int n =
@@ -101,14 +120,7 @@ static void establish_server_listener() {
                     log_debug("establish_server_connection",
                               "error on writing");
                 }
-            }
-        }
-        if (FD_ISSET(cs_state.connection_fd, &readfds)) {
-            int n = recv(cs_state.connection_fd, message, sizeof(message), 0);
-            if (n < 0) {
-                printf("error on reading");
-            } else {
-                printf("%s", message);
+                memset(api_msg, '\0', strlen(api_msg));
             }
         }
     }

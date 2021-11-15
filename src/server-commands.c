@@ -16,6 +16,7 @@ static int cur_fd;
 int cmdh_logout(char **args) {
     log_debug("cmdh_logout", "closing connection to %d", cur_fd);
     close(cur_fd);
+    log_debug("cmdh_logout", "socket close success");
     ss_remove_child_connection(cur_fd);
     return 0;
 }
@@ -29,8 +30,16 @@ int cmdh_msg_global(char **args) {
     char name[20] = "[NAME]";
     printf("%s %s (%d): %s\n", date, name, cur_fd, args[1]);
     char out[4096];
-    sprintf(out, "%s %s: %s", date, name, args[1]);
-    sm_propogate_message(cur_fd, out);
+    sprintf(out, "%s %s: %s\n", date, name, args[1]);
+
+    char *api_msg = apim_create();
+
+    apim_add_param(api_msg, "GLOBAL", 0);
+    apim_add_param(api_msg, out, 1);
+
+    sm_propogate_message(cur_fd, api_msg);
+
+    free(api_msg);
     return 0;
 }
 
@@ -52,11 +61,7 @@ int cmdh_execute_command(char *command, int from_fd) {
 
     int result = cmd_execute(&cmdh_commands, parsed_args[0], parsed_args);
 
-    int argc = apim_count_args(command);
-    for (int i = 0; i < argc; i++) {
-        free(parsed_args[i]);
-    }
-    free(parsed_args);
+    apim_free_args(parsed_args);
 
     return result;
 }

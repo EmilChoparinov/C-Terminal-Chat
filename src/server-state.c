@@ -7,7 +7,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "api-messages.h"
 #include "logger.h"
+#include "server-messages.h"
 
 void ss_reset() {
     memset(&ss_state, 0, sizeof(ss_state));
@@ -53,7 +55,8 @@ int ss_add_child_connection(int fd) {
     assert(fd_loc < SS_MAX_CHILDREN);
 
     /* set child connection */
-    log_debug("ss_add_child_connection", "adding at loc: %d fd: %d", fd_loc, fd);
+    log_debug("ss_add_child_connection", "adding at loc: %d fd: %d", fd_loc,
+              fd);
     ss_state.child_fd[fd_loc] = fd;
     return fd_loc;
 }
@@ -91,6 +94,11 @@ unsigned int ss_get_active_size() {
 }
 
 void ss_free() {
+    char *api_msg = apim_create();
+    apim_add_param(api_msg, "SERVER_DISCONNECTED\n", 0);
+    sm_propogate_message(ss_state.server_fd, api_msg);
+    free(api_msg);
+
     for (int i = 0; i < SS_MAX_CHILDREN; i++) {
         int cur_fd = ss_state.child_fd[i];
         if (cur_fd != -1) {

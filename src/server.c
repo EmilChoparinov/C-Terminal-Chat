@@ -20,14 +20,21 @@ int main(int argc, char **argv) {
     uint16_t port;
 
     /* validate arguments */
-    if (argc != 2 || (port = utils_parse_port(argv[1])) == -1) {
+    if (argc < 2 || (port = utils_parse_port(argv[1])) == -1) {
         usage();
         return 1;
     }
 
+    log_set_debug_mode(1);
+    if (argc == 3) {
+        if (strcmp(argv[2], "DEBUG") == 0) {
+            log_set_debug_mode(0);
+            log_debug("main", "enabling debug mode");
+        }
+    }
+
     /* server state setup */
     ss_reset();
-    log_set_debug_mode(0);
     cmdh_setup_client_commands();
 
     /* server spinup operations */
@@ -113,5 +120,5 @@ static void create_server(uint16_t port) {
 
 static void usage() {
     printf("usage:\n");
-    printf("\t [port]\n");
+    printf("\t [port] [DEBUG]\n");
 }
