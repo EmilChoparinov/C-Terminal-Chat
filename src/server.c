@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "logger.h"
 #include "server-commands.h"
 #include "server-state.h"
 #include "utils.h"
@@ -24,16 +25,22 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    /* server state setup */
     ss_reset();
+    log_set_debug_mode(0);
+    cmdh_setup_client_commands();
 
+    /* server spinup operations */
     create_server(port);
     bind(ss_state.server_fd, (struct sockaddr *)&ss_state.serv,
          sizeof(ss_state.serv));
     printf("Listening for connections on port %d\n", port);
-    cmdh_setup_client_commands();
-    listen_for_connections();
-    ss_free();
 
+    /* setup listeners */
+    listen_for_connections();
+
+    /* server cleanup operations */
+    ss_free();
     return 0;
 }
 
@@ -60,7 +67,7 @@ static void listen_for_connections() {
 
         int s = select(fdmax + 1, &readfds, NULL, NULL, NULL);
         if (s < 0) {
-            printf("[listen_for_connections] select failed");
+            log_debug("listen_for_connections", "**select failed**");
             return;
         }
 
@@ -76,17 +83,23 @@ static void listen_for_connections() {
             if (child_fd != -1 && FD_ISSET(child_fd, &readfds)) {
                 char message[4096] = "";
                 recv(child_fd, message, sizeof(message), 0);
-                printf("[listen_for_connections] received message \"%s\"\n",
-                       message);
+                log_debug("listen_for_connections", "recieved message \"%s\"",
+                          message);
                 cmdh_execute_command(message, child_fd);
-
-                printf("[listen_for_connections] end of message process\n\n");
+                log_debug("listen_for_connections", "end of message process\n");
             }
         }
 
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
-            printf("[listen_for_connections] closing server...\n");
-            break;
+            char message[4096] = "";
+            fgets(message, sizeof(message), stdin);
+            utils_clear_newlines(message);
+            if (strcmp(message, "q") == 0) {
+                log_debug("listen_for_connections", "closing server...");
+                break;
+            } else {
+                printf("Type \"q\" to close server\n");
+            }
         }
     }
 }

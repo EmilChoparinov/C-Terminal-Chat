@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "logger.h"
 #include "string.h"
 
 void cmd_create_command_list(struct cmd_command_list *command_list) {
@@ -15,24 +16,24 @@ void cmd_create_command_list(struct cmd_command_list *command_list) {
 
 int cmd_execute(struct cmd_command_list *commands, char *command, char **args) {
     for (int i = 0; i < CMD_COUNT; i++) {
-        printf("[cmd_execute] reading \"%s\" looking for \"%s\" (%d)\n",
-               commands->names[i], command,
-               strcmp(command, commands->names[i]));
+        log_debug("cmd_execute", "reading \"%s\" looking for \"%s\" (%d)",
+                  commands->names[i], command,
+                  strcmp(command, commands->names[i]));
         if (strcmp(command, commands->names[i]) == 0) {
-            printf("[cmd_execute] found command \"%s\"\n", command);
+            log_debug("cmd_execute", "found command \"%s\"", command);
             return commands->executer[i](args);
         }
     }
-    printf("[cmd_execute] command not found, aborting\n");
+    log_debug("cmd_execute", "command not found, aborting");
     return 1;
 }
 
 int cmd_is_command(struct cmd_command_list *commands, char *command) {
     for (int i = 0; i < CMD_COUNT; i++) {
-        printf("[cmd_is_command] checking command %s against %s\n",
-               commands->names[i], command);
+        log_debug("cmd_is_command", "checking command %s against %s",
+                  commands->names[i], command);
         if (strcmp(command, commands->names[i]) == 0) {
-            printf("[cmd_is_command] found command\n");
+            log_debug("cmd_is_command", "found command");
             return 0;
         }
     }

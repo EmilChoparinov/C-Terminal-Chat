@@ -7,6 +7,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "logger.h"
+
 void ss_reset() {
     memset(&ss_state, 0, sizeof(ss_state));
     ss_state.server_fd = -1;
@@ -43,7 +45,7 @@ void ss_remove_child_connection(int fd) {
 
 int ss_add_child_connection(int fd) {
     /* find next available FD location */
-    printf("[ss_add_child_connection] adding fd: %d\n", fd);
+    log_debug("ss_add_child_connection", "adding fd: %d", fd);
     int fd_loc = 0;
     while (ss_state.child_fd[fd_loc] != -1) {
         fd_loc++;
@@ -51,7 +53,7 @@ int ss_add_child_connection(int fd) {
     assert(fd_loc < SS_MAX_CHILDREN);
 
     /* set child connection */
-    printf("[ss_add_child_connection] adding at loc: %d fd: %d\n", fd_loc, fd);
+    log_debug("ss_add_child_connection", "adding at loc: %d fd: %d", fd_loc, fd);
     ss_state.child_fd[fd_loc] = fd;
     return fd_loc;
 }
@@ -62,8 +64,8 @@ int *ss_get_active_connections() {
     int fds_i = 0;
     int fd_loc = 0;
     while (fd_loc < SS_MAX_CHILDREN) {
-        printf("[ss_get_active_connections] at %d value is: %d\n", fd_loc,
-               ss_state.child_fd[fd_loc]);
+        log_debug("ss_get_active_connections", "at %d value is: %d", fd_loc,
+                  ss_state.child_fd[fd_loc]);
         if (ss_state.child_fd[fd_loc] != -1) {
             fds[fds_i] = ss_state.child_fd[fd_loc];
             fds_i++;
@@ -83,7 +85,7 @@ unsigned int ss_get_active_size() {
         }
     }
 
-    printf("[ss_get_active_size] size is: %d\n", count);
+    log_debug("ss_get_active_size", "size is: %d", count);
 
     return count;
 }

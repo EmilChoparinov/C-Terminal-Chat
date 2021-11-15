@@ -4,6 +4,7 @@
 
 #include "api-messages.h"
 #include "commands.h"
+#include "logger.h"
 #include "server-messages.h"
 #include "server-state.h"
 #include "time.h"
@@ -13,7 +14,7 @@ struct cmd_command_list cmdh_commands;
 static int cur_fd;
 
 int cmdh_logout(char **args) {
-    printf("[cmdh_logout] closing connection to %d\n", cur_fd);
+    log_debug("cmdh_logout", "closing connection to %d", cur_fd);
     close(cur_fd);
     ss_remove_child_connection(cur_fd);
     return 0;
@@ -29,7 +30,7 @@ int cmdh_msg_global(char **args) {
     printf("%s %s (%d): %s\n", date, name, cur_fd, args[1]);
     char out[4096];
     sprintf(out, "%s %s: %s", date, name, args[1]);
-    sm_propogate_message(cur_fd, out, sizeof(out));
+    sm_propogate_message(cur_fd, out);
     return 0;
 }
 

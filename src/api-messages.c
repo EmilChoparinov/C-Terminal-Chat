@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "logger.h"
 #include "string.h"
 
 static int argc_to_pos(char *s, int argc) {
@@ -45,7 +46,6 @@ char *apim_create() {
 }
 
 char *apim_read_param(char *s, int argc) {
-    printf("[apim_read_param] reading arg %d in command str \"%s\"\n", argc, s);
     int arg_start_pos = argc_to_pos(s, argc);
     int s_size = strlen(s);
 
@@ -72,13 +72,9 @@ char *apim_read_param(char *s, int argc) {
         malloc(sizeof(char) * (end_pos - arg_start_pos - pipe_account) + 1);
     memset(param, 0, (end_pos - arg_start_pos - pipe_account));
 
-    printf("[apim_read_param] allocating thing of str length %d\n",
-           end_pos - arg_start_pos - pipe_account);
     for (int i = arg_start_pos; i < end_pos - pipe_account; i++) {
         param[i - arg_start_pos] = s[i];
     }
-
-    printf("[apim_read_param] arg %d realized as \"%s\"\n", argc, param);
 
     return param;
 }
@@ -111,8 +107,8 @@ char **apim_parse_args(char *s) {
     for (int i = 0; i < argc; i++) {
         char *param = apim_read_param(s, i);
         int   k = strlen(param);
-        printf("[apim_parse_args] parsing arg %d as: %s\n", i, param);
-        printf("[apim_parse_args] arg %d is strlen of: %d\n", i, k);
+        log_debug("apim_parse_args", "parsing arg %d as: %s", i, param);
+        log_debug("apim_parse_args", "arg %d is strlen of: %d", i, k);
         parsed_args[i] = malloc(sizeof(char) * strlen(param));
         parsed_args[i] = param;
     }

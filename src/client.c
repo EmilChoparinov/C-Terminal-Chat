@@ -12,6 +12,7 @@
 #include "api-messages.h"
 #include "client-commands.h"
 #include "client-state.h"
+#include "logger.h"
 #include "utils.h"
 
 static void usage();
@@ -77,7 +78,7 @@ static void establish_server_listener() {
 
         int s = select(fdmax + 1, &readfds, NULL, NULL, NULL);
         if (s < 0) {
-            printf("[establish_server_listener] error: select failed");
+            log_debug("establish_server_listener", "**error: select failed**");
             return;
         }
 
@@ -97,7 +98,8 @@ static void establish_server_listener() {
                 int n =
                     send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
                 if (n < 0) {
-                    printf("[establish_server_connection] error on writing");
+                    log_debug("establish_server_connection",
+                              "error on writing");
                 }
             }
         }
@@ -106,7 +108,7 @@ static void establish_server_listener() {
             if (n < 0) {
                 printf("error on reading");
             } else {
-                printf("From server: %s\n", message);
+                printf("%s", message);
             }
         }
     }

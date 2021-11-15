@@ -5,12 +5,13 @@
 #include "api-messages.h"
 #include "client-state.h"
 #include "commands.h"
+#include "logger.h"
 #include "utils.h"
 
 struct cmd_command_list cmdc_commands;
 
 int cmdc_exit(char **args) {
-    printf("[cmdc_exit] logging out of %d\n", cs_state.connection_fd);
+    log_debug("cmdc_exit", "logging out of %d", cs_state.connection_fd);
 
     char *msg = apim_create();
     apim_add_param(msg, "LOGOUT", 0);
@@ -21,22 +22,22 @@ int cmdc_exit(char **args) {
 }
 
 int cmdc_login(char **args) {
-    printf("[cmdc_exit] do login\n");
+    log_debug("cmdc_exit", "do login");
     return 0;
 }
 
 int cmdc_register(char **args) {
-    printf("[cmdc_register] do register\n");
+    log_debug("cmdc_register", "do register");
     return 0;
 }
 
 int cmdc_users(char **args) {
-    printf("[cmdc_users] listing users\n");
+    log_debug("cmdc_users", "listing users");
     return 0;
 }
 
 int cmdc_help(char **args) {
-    printf("[cmdc_help] doing help\n");
+    log_debug("cmdc_help", "doing help");
 
     printf(
         "Below are a list of commands and a short description:\n\n \
@@ -59,7 +60,7 @@ void cmdc_setup_client_commands() {
 }
 
 int cmdc_execute_command(char *command) {
-    printf("[cmdc_execute_command] executing command \"%s\"...\n", command);
+    log_debug("cmdc_execute_command", "executing command \"%s\"...\n", command);
     if (cmd_is_command(&cmdc_commands, command) == 1) {
         printf("Invalid Command, do /help to view all commands\n");
         return 0;
