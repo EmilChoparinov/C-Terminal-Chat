@@ -127,8 +127,11 @@ char **apim_parse_args(char *s) {
 }
 
 void apim_free_args(char **args, int argc) {
+    log_debug("apim_free_args", "freeing %d args", argc);
     for (int i = 0; i < argc; i++) {
+        log_debug("apim_free_args", "freeing \"%s\"", args[i]);
         free(args[i]);
     }
+    log_debug("apim_free_args", "freed args, now freeing main pointer");
     free(args);
 }

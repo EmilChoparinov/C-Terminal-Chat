@@ -97,7 +97,6 @@ static void establish_server_listener() {
                 if (should_exit != 0) {
                     return;
                 }
-                // printf("%s", message);
             }
         }
 

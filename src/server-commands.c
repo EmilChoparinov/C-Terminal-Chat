@@ -16,8 +16,8 @@ static int cur_fd;
 int cmdh_logout(char **args) {
     log_debug("cmdh_logout", "closing connection to %d", cur_fd);
     close(cur_fd);
-    log_debug("cmdh_logout", "socket close success");
     ss_remove_child_connection(cur_fd);
+    log_debug("cmdh_logout", "socket close success");
     return 0;
 }
 
@@ -61,7 +61,7 @@ int cmdh_execute_command(char *command, int from_fd) {
 
     int result = cmd_execute(&cmdh_commands, parsed_args[0], parsed_args);
 
-    apim_free_args(parsed_args);
+    apim_free_args(parsed_args, apim_count_args(command));
 
     return result;
 }

@@ -57,7 +57,7 @@ int cmdc_global(char **args) {
 }
 
 int cmdc_server_disconnected(char **args) {
-    printf("Server has disconnected\n");
+    printf("Server has disconnected you.\n");
     return 1;
 }
 
@@ -102,6 +102,6 @@ int cmdc_execute_server_command(char *command) {
 
     int result = cmd_execute(&cmdc_commands, parsed_args[0], parsed_args);
 
-    apim_free_args(parsed_args);
+    apim_free_args(parsed_args, apim_count_args(command));
     return result;
 }

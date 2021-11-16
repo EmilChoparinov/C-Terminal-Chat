@@ -43,5 +43,6 @@ char **apim_parse_args(char *s);
  * @brief free memory associated with an argumented api message
  *
  * @param args arguments created by `apim_parse_args` to free
+ * @param argc count of arguments
  */
-void apim_free_args(char **args);
+void apim_free_args(char **args, int argc);

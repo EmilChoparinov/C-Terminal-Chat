@@ -1,4 +1,4 @@
-#include <netinet/in.h>  // get AF_INET address family
+#include <netinet/in.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,19 +12,30 @@
 #include "server-state.h"
 #include "utils.h"
 
+//---- FUNCTION DECLARES -------------------------------------------------------
+/**
+ * @brief Print simple usage info about this app
+ *
+ */
 static void usage();
+
+/**
+ * @brief Entry point for socket connection and processes
+ *
+ */
 static void listen_for_connections();
 static void create_server(uint16_t port);
 
 int main(int argc, char **argv) {
     uint16_t port;
 
-    /* validate arguments */
+    // validate cmd arguments
     if (argc < 2 || (port = utils_parse_port(argv[1])) == -1) {
         usage();
         return 1;
     }
 
+    // optionally enable debug mode if 2rd parameter was DEBUG
     log_set_debug_mode(1);
     if (argc == 3) {
         if (strcmp(argv[2], "DEBUG") == 0) {
@@ -33,24 +44,25 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* server state setup */
+    // initializations here
     ss_reset();
     cmdh_setup_client_commands();
 
-    /* server spinup operations */
+    // server spinup operations here
     create_server(port);
     bind(ss_state.server_fd, (struct sockaddr *)&ss_state.serv,
          sizeof(ss_state.serv));
     printf("Listening for connections on port %d\n", port);
 
-    /* setup listeners */
+    // setup listeners here
     listen_for_connections();
 
-    /* server cleanup operations */
+    // server cleanup operations here
     ss_free();
     return 0;
 }
 
+//---- FUNCTIONS ---------------------------------------------------------------
 static void listen_for_connections() {
     listen(ss_state.server_fd, 5);
 
@@ -90,9 +102,16 @@ static void listen_for_connections() {
             if (child_fd != -1 && FD_ISSET(child_fd, &readfds)) {
                 char message[4096] = "";
                 recv(child_fd, message, sizeof(message), 0);
-                log_debug("listen_for_connections", "recieved message \"%s\"",
-                          message);
-                cmdh_execute_command(message, child_fd);
+                log_debug("listen_for_connections",
+                          "recieved message \"%s\" from %d", message, child_fd);
+
+                if (strlen(message) != 0) {
+                    cmdh_execute_command(message, child_fd);
+                    log_debug("listen_for_connections",
+                              "cmdh execution success");
+                } else {
+                    break;
+                }
                 log_debug("listen_for_connections", "end of message process\n");
             }
         }
