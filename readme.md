@@ -50,4 +50,5 @@ The `docs/` folder that is included in this repository contains architectural in
 
 [Networking Architecture](./docs/architecture/networking.md)
 
+
 [Extending The Code](./docs/architecture/continued-development.md)
