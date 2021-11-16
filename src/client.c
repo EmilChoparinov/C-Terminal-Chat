@@ -12,6 +12,7 @@
 #include "api-messages.h"
 #include "client-commands.h"
 #include "client-state.h"
+#include "logger.h"
 #include "utils.h"
 
 static void usage();
@@ -22,20 +23,37 @@ static void establish_server_listener();
 int main(int argc, char **argv) {
     uint16_t port;
 
-    /* validate arguments */
-    if (argc != 3 || (port = utils_parse_port(argv[2])) == -1) {
+    // validate cmd arguments
+    if (argc < 3 || (port = utils_parse_port(argv[2])) == -1) {
         usage();
         return 1;
     }
 
+    // optionally enable debug mode if 3rd paramter was DEBUG
+    log_set_debug_mode(1);
+    if (argc == 4) {
+        if (strcmp(argv[4], "DEBUG") == 0) {
+            log_set_debug_mode(0);
+            log_debug("main", "enabling debug mode");
+        }
+    }
+
+    // initializations here
+    cs_reset();
+    cmdc_setup_client_commands();
+
+    // client spinup operations here
     setup_server_connection(port, argv[1]);
     if (do_server_connection() != 0) {
         return 1;
     }
 
-    printf("Connected to %s:%d\n", cs_state.ipv4_hostname, port);
-    cmdc_setup_client_commands();
+    // setup listeners here
     establish_server_listener();
+
+    // client cleanup here
+    close(cs_state.connection_fd);
+    cmdc_free_client_commands();
 
     return 0;
 }
@@ -67,6 +85,8 @@ static int do_server_connection() {
 }
 
 static void establish_server_listener() {
+    printf("Connected to %s:%d\n", cs_state.ipv4_hostname,
+           cs_state.serv.sin_port);
     while (1) {
         fd_set readfds;
 
@@ -77,11 +97,23 @@ static void establish_server_listener() {
 
         int s = select(fdmax + 1, &readfds, NULL, NULL, NULL);
         if (s < 0) {
-            printf("[establish_server_listener] error: select failed");
+            log_debug("establish_server_listener", "**error: select failed**");
             return;
         }
 
         char message[4096] = "";
+        if (FD_ISSET(cs_state.connection_fd, &readfds)) {
+            int n = recv(cs_state.connection_fd, message, sizeof(message), 0);
+            if (n < 0) {
+                printf("error on reading");
+            } else {
+                int should_exit = cmdc_execute_server_command(message);
+                if (should_exit != 0) {
+                    return;
+                }
+            }
+        }
+
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
             fgets(message, sizeof(message), stdin);
             utils_clear_newlines(message);
@@ -97,16 +129,10 @@ static void establish_server_listener() {
                 int n =
                     send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
                 if (n < 0) {
-                    printf("[establish_server_connection] error on writing");
+                    log_debug("establish_server_connection",
+                              "error on writing");
                 }
-            }
-        }
-        if (FD_ISSET(cs_state.connection_fd, &readfds)) {
-            int n = recv(cs_state.connection_fd, message, sizeof(message), 0);
-            if (n < 0) {
-                printf("error on reading");
-            } else {
-                printf("From server: %s\n", message);
+                free(api_msg);
             }
         }
     }
