@@ -52,6 +52,7 @@ int cmdh_msg_global(char **args) {
 void cmdh_setup_server_commands() {
     cmd_create_command_list(&cmdh_commands);
 
+    // register server commands/requests here
     cmd_register_command(&cmdh_commands, "GLOBAL", &cmdh_msg_global);
     cmd_register_command(&cmdh_commands, "LOGOUT", &cmdh_logout);
 }

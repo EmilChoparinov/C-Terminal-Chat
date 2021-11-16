@@ -24,4 +24,10 @@ int cmdc_execute_command(char *command);
  */
 int cmdc_execute_server_command(char *command);
 
+/**
+ * @brief Free all data relating to server commands
+ * 
+ */
+void cmdc_free_client_commands();
+
 #endif

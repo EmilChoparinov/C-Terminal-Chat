@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // optionally enable debug mode if 2rd parameter was DEBUG
+    // optionally enable debug mode if 2nd parameter was DEBUG
     log_set_debug_mode(1);
     if (argc == 3) {
         if (strcmp(argv[2], "DEBUG") == 0) {

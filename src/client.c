@@ -23,25 +23,37 @@ static void establish_server_listener();
 int main(int argc, char **argv) {
     uint16_t port;
 
-    /* validate arguments */
-    if (argc != 3 || (port = utils_parse_port(argv[2])) == -1) {
+    // validate cmd arguments
+    if (argc < 3 || (port = utils_parse_port(argv[2])) == -1) {
         usage();
         return 1;
     }
 
-    log_set_debug_mode(0);
-    cs_reset();
+    // optionally enable debug mode if 3rd paramter was DEBUG
+    log_set_debug_mode(1);
+    if (argc == 4) {
+        if (strcmp(argv[4], "DEBUG") == 0) {
+            log_set_debug_mode(0);
+            log_debug("main", "enabling debug mode");
+        }
+    }
 
+    // initializations here
+    cs_reset();
+    cmdc_setup_client_commands();
+
+    // client spinup operations here
     setup_server_connection(port, argv[1]);
     if (do_server_connection() != 0) {
         return 1;
     }
 
-    printf("Connected to %s:%d\n", cs_state.ipv4_hostname, port);
-    cmdc_setup_client_commands();
+    // setup listeners here
     establish_server_listener();
 
+    // client cleanup here
     close(cs_state.connection_fd);
+    cmdc_free_client_commands();
 
     return 0;
 }
@@ -73,6 +85,8 @@ static int do_server_connection() {
 }
 
 static void establish_server_listener() {
+    printf("Connected to %s:%d\n", cs_state.ipv4_hostname,
+           cs_state.serv.sin_port);
     while (1) {
         fd_set readfds;
 
@@ -100,7 +114,6 @@ static void establish_server_listener() {
             }
         }
 
-        char *api_msg;
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
             fgets(message, sizeof(message), stdin);
             utils_clear_newlines(message);
@@ -110,7 +123,7 @@ static void establish_server_listener() {
                     return;
                 }
             } else {
-                api_msg = apim_create();
+                char *api_msg = apim_create();
                 apim_add_param(api_msg, "GLOBAL", 0);
                 apim_add_param(api_msg, message, 1);
                 int n =
@@ -119,7 +132,7 @@ static void establish_server_listener() {
                     log_debug("establish_server_connection",
                               "error on writing");
                 }
-                memset(api_msg, '\0', strlen(api_msg));
+                free(api_msg);
             }
         }
     }

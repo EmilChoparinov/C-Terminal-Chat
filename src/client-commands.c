@@ -9,7 +9,7 @@
 #include "logger.h"
 #include "utils.h"
 
-struct cmd_command_list cmdc_commands;
+static struct cmd_command_list cmdc_commands;
 
 int cmdc_exit(char **args) {
     log_debug("cmdc_exit", "logging out of %d", cs_state.connection_fd);
@@ -76,6 +76,8 @@ void cmdc_setup_client_commands() {
     cmd_register_command(&cmdc_commands, "SERVER_DISCONNECTED",
                          &cmdc_server_disconnected);
 }
+
+void cmdc_free_client_commands() { cmd_deregister(&cmdc_commands); }
 
 int cmdc_execute_command(char *command) {
     log_debug("cmdc_execute_command", "executing command \"%s\"...", command);
