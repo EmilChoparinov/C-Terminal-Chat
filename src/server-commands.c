@@ -9,41 +9,47 @@
 #include "server-state.h"
 #include "time.h"
 
-struct cmd_command_list cmdh_commands;
+static struct cmd_command_list cmdh_commands;
 
+// hacky but will let us access the client that sent us the current message. It
+// should be a non-issue as our server is single-threaded anyway. This variable
+// is set first thing when entering a command execution.
 static int cur_fd;
 
 int cmdh_logout(char **args) {
     log_debug("cmdh_logout", "closing connection to %d", cur_fd);
-    close(cur_fd);
     ss_remove_child_connection(cur_fd);
     log_debug("cmdh_logout", "socket close success");
     return 0;
 }
 
 int cmdh_msg_global(char **args) {
+    // create and format the current datetime to send
     time_t cur_date;
     time(&cur_date);
     char date[sizeof "2021-07-07T08:08:09Z"];
-
     strftime(date, sizeof(date), "%Y-%m-%d %I:%M:%S", localtime(&cur_date));
     char name[20] = "[NAME]";
+
+    // print to server for server viewing reference
     printf("%s %s (%d): %s\n", date, name, cur_fd, args[1]);
+
+    // format the message into `out`
     char out[4096];
     sprintf(out, "%s %s: %s\n", date, name, args[1]);
 
+    // send the formatted message across all clients as this is the global chat
     char *api_msg = apim_create();
-
     apim_add_param(api_msg, "GLOBAL", 0);
     apim_add_param(api_msg, out, 1);
-
     sm_propogate_message(cur_fd, api_msg);
 
+    // cleanups here
     free(api_msg);
     return 0;
 }
 
-void cmdh_setup_client_commands() {
+void cmdh_setup_server_commands() {
     cmd_create_command_list(&cmdh_commands);
 
     cmd_register_command(&cmdh_commands, "GLOBAL", &cmdh_msg_global);
@@ -65,3 +71,5 @@ int cmdh_execute_command(char *command, int from_fd) {
 
     return result;
 }
+
+void cmdh_free_server_commands() { cmd_deregister(&cmdh_commands); }

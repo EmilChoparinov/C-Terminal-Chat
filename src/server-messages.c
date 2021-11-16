@@ -13,6 +13,11 @@ void sm_propogate_message(int from_fd, char *message) {
     log_debug("sm_propogate_message", "size of current connections: %d",
               connection_size);
 
+    // this loop will:
+    //      - go through each active connection
+    //      - send the message to each connection that is **not**
+    //          * from the connection itself
+    //          * the server
     for (int i = 0; i < connection_size; i++) {
         log_debug("sm_propogate_message",
                   "reading for connection %d as pos %d...", connections[i], i);

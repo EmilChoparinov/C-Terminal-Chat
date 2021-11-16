@@ -48,6 +48,13 @@ void cmd_register_command(struct cmd_command_list *commands, char *command_name,
                           int (*func)(char **args));
 
 /**
+ * @brief Free commands and clean struct
+ * 
+ * @param commands the struct of commands to clean
+ */
+void cmd_deregister(struct cmd_command_list *commands);
+
+/**
  * @brief Check if a command follows the correct command format
  *
  * @param command the command string

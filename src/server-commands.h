@@ -6,7 +6,13 @@
  * @brief Run initializer for the client commands
  *
  */
-void cmdh_setup_client_commands();
+void cmdh_setup_server_commands();
+
+/**
+ * @brief Free all data relating to server commands
+ * 
+ */
+void cmdh_free_server_commands();
 
 /**
  * @brief Executes a given command

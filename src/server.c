@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 
     // initializations here
     ss_reset();
-    cmdh_setup_client_commands();
+    cmdh_setup_server_commands();
 
     // server spinup operations here
     create_server(port);
@@ -59,6 +59,7 @@ int main(int argc, char **argv) {
 
     // server cleanup operations here
     ss_free();
+    cmdh_free_server_commands();
     return 0;
 }
 
@@ -66,9 +67,13 @@ int main(int argc, char **argv) {
 static void listen_for_connections() {
     listen(ss_state.server_fd, 5);
 
+    // loop break conditions:
+    //      - select FD fails
+    //      - someone type's "q" into the server, graceful closure
     while (1) {
         fd_set readfds;
 
+        // setting up select using STDIN, servers self fd, all connection fds
         FD_ZERO(&readfds);
         FD_SET(STDIN_FILENO, &readfds);
         FD_SET(ss_state.server_fd, &readfds);
@@ -76,7 +81,7 @@ static void listen_for_connections() {
 
         for (int i = 0; i < SS_MAX_CHILDREN; i++) {
             int child_fd = ss_state.child_fd[i];
-            if (child_fd != -1) {
+            if (child_fd != -1) {  // -1 = not connected
                 FD_SET(child_fd, &readfds);
                 if (child_fd > fdmax) {
                     fdmax = child_fd;
@@ -90,7 +95,11 @@ static void listen_for_connections() {
             return;
         }
 
+        // if servers self fd is set, that means we have an incomming
+        // connection. save the FD as a child connection
         if (FD_ISSET(ss_state.server_fd, &readfds)) {
+            // TODO: don't accept greater than SS_MAX_CHILDREN connections at a
+            // time
             int cur_conn =
                 accept(ss_state.server_fd, (struct sockaddr *)NULL, NULL);
             ss_add_child_connection(cur_conn);
@@ -99,23 +108,25 @@ static void listen_for_connections() {
         for (int i = 0; i < SS_MAX_CHILDREN; i++) {
             int child_fd = ss_state.child_fd[i];
 
+            // if child connection exists and has incomming data, process
             if (child_fd != -1 && FD_ISSET(child_fd, &readfds)) {
                 char message[4096] = "";
                 recv(child_fd, message, sizeof(message), 0);
                 log_debug("listen_for_connections",
                           "recieved message \"%s\" from %d", message, child_fd);
 
-                if (strlen(message) != 0) {
-                    cmdh_execute_command(message, child_fd);
-                    log_debug("listen_for_connections",
-                              "cmdh execution success");
-                } else {
+                if (strlen(message) == 0) {
+                    // TODO: handle connection recieving empty messagees, we
+                    // shouldnt be breaking
                     break;
                 }
+                cmdh_execute_command(message, child_fd);
                 log_debug("listen_for_connections", "end of message process\n");
             }
         }
 
+        // if someone has typed something into the terminal, read that input and
+        // process
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
             char message[4096] = "";
             fgets(message, sizeof(message), stdin);

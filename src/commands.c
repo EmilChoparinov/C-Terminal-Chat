@@ -51,3 +51,10 @@ void cmd_register_command(struct cmd_command_list *commands, char *command_name,
     commands->executer[commands->_i] = func;
     commands->_i++;
 }
+
+void cmd_deregister(struct cmd_command_list *commands) {
+    for (int i = 0; i < commands->_i; i++) {
+        free(commands->names[i]);
+    }
+    commands->_i = 0;
+}

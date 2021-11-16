@@ -27,23 +27,6 @@ struct server_state {
 void ss_reset();
 
 /**
- * @brief Get if the child is child_pending. A valid file description within
- * range is required
- *
- * @param fd child file descriptor from [0,15]
- * @return int child child_pending state
- */
-int ss_get_child_pending(int fd);
-
-/**
- * @brief Get if the current child is instanced under a specific file descriptor
- *
- * @param fd child file descriptor from [0,15]
- * @return int 0 if child DNE, 1 if child exists
- */
-int ss_child_instance_exists(int fd);
-
-/**
  * @brief Remove a child connection from the server state using its file
  * descriptor
  *
@@ -79,7 +62,7 @@ unsigned int ss_get_active_size();
 /**
  * @brief Frees any memory related to the server state and closes all currently
  * active socket connections
- * 
+ *
  */
 void ss_free();
 
