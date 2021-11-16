@@ -49,4 +49,5 @@ Select `Y` will autostart the server on port 4000
 The `docs/` folder that is included in this repository contains architectural information about the project. Here are links to each piece of documentation
 
 [Networking Architecture](./docs/architecture/networking.md)
+
 [Extending The Code](./docs/architecture/continued-development.md)
