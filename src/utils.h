@@ -20,3 +20,12 @@ char *utils_hostname_to_ipv4(const char *hostname);
  * @param str_to_clean the string to remove newlines from
  */
 void utils_clear_newlines(char *str_to_clean);
+
+/**
+ * @brief Converts a string to an argument array
+ *
+ * @param str_of_args string to convert
+ * @param out_count the amount of arguments
+ * @return char** an argument array
+ */
+char **utils_str_to_args(char *str_of_args, int *out_count);

@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     // optionally enable debug mode if 3rd paramter was DEBUG
     log_set_debug_mode(1);
     if (argc == 4) {
-        if (strcmp(argv[4], "DEBUG") == 0) {
+        if (strcmp(argv[3], "DEBUG") == 0) {
             log_set_debug_mode(0);
             log_debug("main", "enabling debug mode");
         }

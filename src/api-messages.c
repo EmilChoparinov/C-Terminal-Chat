@@ -111,6 +111,7 @@ int apim_count_args(char *s) {
 }
 
 char **apim_parse_args(char *s) {
+    log_debug("apim_parse_args", "parsing message \"%s\"", s);
     int argc = apim_count_args(s);
 
     char **parsed_args = malloc(sizeof(char *) * argc);

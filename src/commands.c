@@ -16,7 +16,9 @@ void cmd_create_command_list(struct cmd_command_list *command_list) {
     }
 }
 
-int cmd_execute(struct cmd_command_list *commands, char *command, char **args) {
+int cmd_execute(struct cmd_command_list *commands, char *command, char **args,
+                int argc) {
+    log_debug("cmd_execute", "executing given command \"%s\"...", command);
     for (int i = 0; i < CMD_COUNT; i++) {
         log_debug("cmd_execute", "reading \"%s\" looking for \"%s\" (%d)",
                   commands->names[i], command,
@@ -25,7 +27,7 @@ int cmd_execute(struct cmd_command_list *commands, char *command, char **args) {
         // is the proper command to execute
         if (strcmp(command, commands->names[i]) == 0) {
             log_debug("cmd_execute", "found command \"%s\"", command);
-            return commands->executer[i](args);
+            return commands->executer[i](args, argc);
         }
     }
     log_debug("cmd_execute", "command not found, aborting");
@@ -48,7 +50,7 @@ int cmd_is_command(struct cmd_command_list *commands, char *command) {
 int cmd_has_command_prop(char *command) { return command[0] != '/'; }
 
 void cmd_register_command(struct cmd_command_list *commands, char *command_name,
-                          int (*func)(char **args)) {
+                          int (*func)(char **args, int argc)) {
     assert(commands->_i < CMD_COUNT);
 
     // save the string name and function pointer to the command list struct

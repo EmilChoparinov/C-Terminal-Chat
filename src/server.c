@@ -9,6 +9,7 @@
 
 #include "logger.h"
 #include "server-commands.h"
+#include "server-db.h"
 #include "server-state.h"
 #include "utils.h"
 
@@ -47,6 +48,7 @@ int main(int argc, char **argv) {
     // initializations here
     ss_reset();
     cmdh_setup_server_commands();
+    sdb_setup();
 
     // server spinup operations here
     create_server(port);
@@ -60,6 +62,8 @@ int main(int argc, char **argv) {
     // server cleanup operations here
     ss_free();
     cmdh_free_server_commands();
+    sdb_free();
+
     return 0;
 }
 

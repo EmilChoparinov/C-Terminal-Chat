@@ -8,7 +8,7 @@
 
 struct cmd_command_list {
     int _i;
-    int (*executer[CMD_COUNT])(char **args);
+    int (*executer[CMD_COUNT])(char **args, int argc);
     char *names[CMD_COUNT];
 };
 
@@ -26,7 +26,8 @@ void cmd_create_command_list(struct cmd_command_list *command_list);
  * @param command command string
  * @return int 1 if unexpected occurance or program halt
  */
-int cmd_execute(struct cmd_command_list *commands, char *command, char **args);
+int cmd_execute(struct cmd_command_list *commands, char *command, char **args,
+                int argc);
 
 /**
  * @brief Check if a command string is part of the command list
@@ -45,11 +46,11 @@ int cmd_is_command(struct cmd_command_list *commands, char *command);
  * @param func pointer to the command function
  */
 void cmd_register_command(struct cmd_command_list *commands, char *command_name,
-                          int (*func)(char **args));
+                          int (*func)(char **args, int argc));
 
 /**
  * @brief Free commands and clean struct
- * 
+ *
  * @param commands the struct of commands to clean
  */
 void cmd_deregister(struct cmd_command_list *commands);
