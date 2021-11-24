@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "logger.h"
+#include "utils.h"
 static char *checklist[] = {
     "--",    ";--",    ";",      "/*",         "*/",         "@@",
     "@",     "char",   "nchar",  "varchar",    "nvarchar",   "alter",
@@ -20,15 +22,14 @@ int sic_is_sql_ok(char *query) {
         }
 
         // convert string to uppercase
-        char *upper_word = (char *)malloc(strlen(word) + 1);
-        strcpy(upper_word, word);
-        unsigned long word_size = strlen(upper_word);
+        char         *upper_word = utils_dup_str(word);
+        unsigned long word_size = strlen(word);
         for (int j = 0; j < word_size; j++) {
-            word[j] = toupper(word[j]);
+            upper_word[j] = toupper(word[j]);
         }
 
         // check upper
-        if (strstr(query, word) != NULL) {
+        if (strstr(query, upper_word) != NULL) {
             return 1;
         }
     }

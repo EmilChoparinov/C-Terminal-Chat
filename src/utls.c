@@ -90,3 +90,25 @@ char **utils_str_to_args(char *arg_str, int *argc) {
 void utils_clear_newlines(char *str_to_clean) {
     str_to_clean[strcspn(str_to_clean, "\n")] = 0;
 }
+
+char *utils_dup_str(char *src_str) {
+    char *str;
+    char *p;
+    int   len = 0;
+
+    while (src_str[len]) len++;
+    str = malloc(len + 1);
+    p = str;
+    while (*src_str) *p++ = *src_str++;
+    *p = '\0';
+    return str;
+}
+
+// char *utils_md_to_string(unsigned char *md, int size) {
+//     char *out = malloc(sizeof(char) * (2 * size + 1));
+//     for (int i = 0; i < size; i++) {
+//         sprintf(*out + (i * 2), "%02x", md[i]);
+//     }
+//     out[2 * size] = '\0';
+//     return out;
+// }

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "api-messages.h"
@@ -7,6 +8,7 @@
 #include "logger.h"
 #include "server-messages.h"
 #include "server-state.h"
+#include "server-users.h"
 #include "sql-inject-checker.h"
 #include "time.h"
 
@@ -17,14 +19,22 @@ static struct cmd_command_list cmdh_commands;
 // is set first thing when entering a command execution.
 static int cur_fd;
 
-int cmdh_logout(char **args, int argc) {
-    log_debug("cmdh_logout", "closing connection to %d", cur_fd);
-    ss_remove_child_connection(cur_fd);
-    log_debug("cmdh_logout", "socket close success");
-    return 0;
-}
+int cmdh_msg_global(char **args, int argc);
+int cmdh_register(char **args, int argc);
+int cmdh_login(char **args, int argc);
+int cmdh_close(char **args, int argc);
+int cmdh_logout(char **args, int argc);
 
 int cmdh_msg_global(char **args, int argc) {
+    if (ss_is_fd_logged_in(cur_fd) == 1) {
+        char *api_msg = apim_create();
+        apim_add_param(api_msg, "SERV_RESPONSE", 0);
+        apim_add_param(
+            api_msg,
+            "Your message was not sent, please login to use this server.", 1);
+        send(cur_fd, api_msg, strlen(api_msg), 0);
+        return 0;
+    }
     // create and format the current datetime to send
     time_t cur_date;
     time(&cur_date);
@@ -52,6 +62,71 @@ int cmdh_msg_global(char **args, int argc) {
 
 int cmdh_register(char **args, int argc) {
     log_debug("cmdh_register", "size of password: %d", sizeof(args[2]));
+    int   response = su_register_user(args[1], args[2]);
+    char *api_msg = apim_create();
+    apim_add_param(api_msg, "SERV_RESPONSE", 0);
+    log_debug("cmdh_register", "received DB response of %d", response);
+    if (response == SU_INVALID) {
+        apim_add_param(api_msg, "The credentials provided are invalid.", 1);
+    }
+    if (response == SU_EXISTS) {
+        apim_add_param(api_msg, "This user is already registered", 1);
+    }
+    if (response == 0) {
+        apim_add_param(api_msg, "Register successful!", 1);
+    }
+
+    send(cur_fd, api_msg, strlen(api_msg), 0);
+
+    cmdh_login(args, argc);  // chain to a login
+    return 0;
+}
+
+int cmdh_login(char **args, int argc) {
+    log_debug("cmdh_login", "do login with \"%s\" and \"%s\"", args[1],
+              args[2]);
+    int   response = su_validate_login(args[1], args[2]);
+    char *api_msg = apim_create();
+    apim_add_param(api_msg, "SERV_RESPONSE", 0);
+
+    if (ss_is_user_logged_in(args[1]) == 0) {
+        apim_add_param(api_msg,
+                       "Already logged in, logout of other account first.", 1);
+        send(cur_fd, api_msg, strlen(api_msg), 0);
+        free(api_msg);
+        return 0;
+    }
+    if (response == SU_INVALID_LOGIN) {
+        apim_add_param(api_msg, "Invalid password", 1);
+    }
+    if (response == SU_DNE) {
+        apim_add_param(api_msg, "Cannot find account", 1);
+    }
+    if (response == 0) {
+        ss_login_fd(cur_fd, args[1]);
+        apim_add_param(api_msg, "Logged in!", 1);
+    }
+    send(cur_fd, api_msg, strlen(api_msg), 0);
+    free(api_msg);
+    return 0;
+}
+
+int cmdh_close(char **args, int argc) {
+    ss_logout_fd(cur_fd);
+    ss_remove_child_connection(cur_fd);
+    return 0;
+}
+
+int cmdh_logout(char **args, int argc) {
+    char *api_msg = apim_create();
+    apim_add_param(api_msg, "SERV_RESPONSE", 0);
+    if (ss_is_fd_logged_in(cur_fd) == 1) {
+        apim_add_param(api_msg, "You are not logged in.", 1);
+    } else {
+        ss_logout_fd(cur_fd);
+        apim_add_param(api_msg, "Successfully logged you out.", 1);
+    }
+    send(cur_fd, api_msg, strlen(api_msg), 0);
     return 0;
 }
 
@@ -60,8 +135,10 @@ void cmdh_setup_server_commands() {
 
     // register server commands/requests here
     cmd_register_command(&cmdh_commands, "GLOBAL", &cmdh_msg_global);
-    cmd_register_command(&cmdh_commands, "LOGOUT", &cmdh_logout);
+    cmd_register_command(&cmdh_commands, "CLOSE", &cmdh_close);
     cmd_register_command(&cmdh_commands, "REGISTER", &cmdh_register);
+    cmd_register_command(&cmdh_commands, "LOGIN", &cmdh_login);
+    cmd_register_command(&cmdh_commands, "LOGOUT", &cmdh_logout);
 }
 
 int cmdh_execute_command(char *command, int from_fd) {
