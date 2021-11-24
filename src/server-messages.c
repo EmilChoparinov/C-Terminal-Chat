@@ -22,7 +22,7 @@ void sm_propogate_message(int from_fd, char *message) {
         log_debug("sm_propogate_message",
                   "reading for connection %d as pos %d...", connections[i], i);
         int cur_fd = connections[i];
-        if (cur_fd != from_fd && cur_fd != ss_state.server_fd) {
+        if (cur_fd != from_fd && cur_fd != ss_state->server_fd) {
             log_debug("sm_propogate_message", "sending message to %d", cur_fd);
             send(cur_fd, message, strlen(message), 0);
         }

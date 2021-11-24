@@ -4,6 +4,7 @@ obj/**
 # produces executables
 client
 server
+secure-chat.db
 
 # personal
 .vscode/

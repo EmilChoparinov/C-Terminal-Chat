@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "logger.h"
+
 uint16_t utils_parse_port(const char *port) {
     if (port == NULL) return -1;
 
@@ -44,6 +46,69 @@ char *utils_hostname_to_ipv4(const char *hostname) {
     return "";
 }
 
+char **utils_str_to_args(char *arg_str, int *argc) {
+    log_debug("utils_str_to_args", "recieved string \"%s\"", arg_str);
+    int arg_count = 0;
+    int i = 0;
+    while (arg_str[i] != '\0') {
+        if (arg_str[i] == ' ') arg_count++;
+        i++;
+    }
+    arg_count++;
+    *argc = arg_count;
+
+    log_debug("utils_str_to_args", "found total args: %d", arg_count);
+
+    char **args = malloc(sizeof(char *) * (arg_count + 1));
+    int    arg_pos = 0;
+    i = 0;
+    while (arg_str[i] != '\0' && arg_pos < arg_count) {
+        int end_arg_pos = 0;
+        while (arg_str[i + end_arg_pos] != ' ' &&
+               arg_str[i + end_arg_pos] != '\n') {
+            end_arg_pos++;
+        }
+
+        log_debug("utils_str_to_args", "allocating %d for arg %d", end_arg_pos,
+                  arg_pos);
+        args[arg_pos] = malloc(sizeof(char) * (end_arg_pos + 1));
+
+        int copy_start = i;
+        while (i < copy_start + end_arg_pos) {
+            args[arg_pos][i - copy_start] = arg_str[i];
+            i++;
+        }
+
+        args[arg_pos][end_arg_pos] = '\0';
+
+        arg_pos++;
+        i++;
+    }
+    return args;
+}
+
 void utils_clear_newlines(char *str_to_clean) {
     str_to_clean[strcspn(str_to_clean, "\n")] = 0;
 }
+
+char *utils_dup_str(char *src_str) {
+    char *str;
+    char *p;
+    int   len = 0;
+
+    while (src_str[len]) len++;
+    str = malloc(len + 1);
+    p = str;
+    while (*src_str) *p++ = *src_str++;
+    *p = '\0';
+    return str;
+}
+
+// char *utils_md_to_string(unsigned char *md, int size) {
+//     char *out = malloc(sizeof(char) * (2 * size + 1));
+//     for (int i = 0; i < size; i++) {
+//         sprintf(*out + (i * 2), "%02x", md[i]);
+//     }
+//     out[2 * size] = '\0';
+//     return out;
+// }

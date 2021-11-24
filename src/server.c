@@ -9,6 +9,7 @@
 
 #include "logger.h"
 #include "server-commands.h"
+#include "server-db.h"
 #include "server-state.h"
 #include "utils.h"
 
@@ -47,11 +48,12 @@ int main(int argc, char **argv) {
     // initializations here
     ss_reset();
     cmdh_setup_server_commands();
+    sdb_setup();
 
     // server spinup operations here
     create_server(port);
-    bind(ss_state.server_fd, (struct sockaddr *)&ss_state.serv,
-         sizeof(ss_state.serv));
+    bind(ss_state->server_fd, (struct sockaddr *)&ss_state->serv,
+         sizeof(ss_state->serv));
     printf("Listening for connections on port %d\n", port);
 
     // setup listeners here
@@ -60,12 +62,14 @@ int main(int argc, char **argv) {
     // server cleanup operations here
     ss_free();
     cmdh_free_server_commands();
+    sdb_free();
+
     return 0;
 }
 
 //---- FUNCTIONS ---------------------------------------------------------------
 static void listen_for_connections() {
-    listen(ss_state.server_fd, 5);
+    listen(ss_state->server_fd, 5);
 
     // loop break conditions:
     //      - select FD fails
@@ -76,11 +80,11 @@ static void listen_for_connections() {
         // setting up select using STDIN, servers self fd, all connection fds
         FD_ZERO(&readfds);
         FD_SET(STDIN_FILENO, &readfds);
-        FD_SET(ss_state.server_fd, &readfds);
-        int fdmax = ss_state.server_fd;
+        FD_SET(ss_state->server_fd, &readfds);
+        int fdmax = ss_state->server_fd;
 
         for (int i = 0; i < SS_MAX_CHILDREN; i++) {
-            int child_fd = ss_state.child_fd[i];
+            int child_fd = ss_state->child_fd[i];
             if (child_fd != -1) {  // -1 = not connected
                 FD_SET(child_fd, &readfds);
                 if (child_fd > fdmax) {
@@ -97,16 +101,16 @@ static void listen_for_connections() {
 
         // if servers self fd is set, that means we have an incomming
         // connection. save the FD as a child connection
-        if (FD_ISSET(ss_state.server_fd, &readfds)) {
+        if (FD_ISSET(ss_state->server_fd, &readfds)) {
             // TODO: don't accept greater than SS_MAX_CHILDREN connections at a
             // time
             int cur_conn =
-                accept(ss_state.server_fd, (struct sockaddr *)NULL, NULL);
+                accept(ss_state->server_fd, (struct sockaddr *)NULL, NULL);
             ss_add_child_connection(cur_conn);
         }
 
         for (int i = 0; i < SS_MAX_CHILDREN; i++) {
-            int child_fd = ss_state.child_fd[i];
+            int child_fd = ss_state->child_fd[i];
 
             // if child connection exists and has incomming data, process
             if (child_fd != -1 && FD_ISSET(child_fd, &readfds)) {
@@ -142,10 +146,10 @@ static void listen_for_connections() {
 }
 
 static void create_server(uint16_t port) {
-    ss_state.serv.sin_family = AF_INET;
-    ss_state.serv.sin_port = htons(port);
-    ss_state.serv.sin_addr.s_addr = INADDR_ANY;
-    ss_state.server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    ss_state->serv.sin_family = AF_INET;
+    ss_state->serv.sin_port = htons(port);
+    ss_state->serv.sin_addr.s_addr = INADDR_ANY;
+    ss_state->server_fd = socket(AF_INET, SOCK_STREAM, 0);
 }
 
 static void usage() {
