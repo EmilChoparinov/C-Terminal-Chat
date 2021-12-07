@@ -104,11 +104,23 @@ char *utils_dup_str(char *src_str) {
     return str;
 }
 
-// char *utils_md_to_string(unsigned char *md, int size) {
-//     char *out = malloc(sizeof(char) * (2 * size + 1));
-//     for (int i = 0; i < size; i++) {
-//         sprintf(*out + (i * 2), "%02x", md[i]);
-//     }
-//     out[2 * size] = '\0';
-//     return out;
-// }
+char *capture_n_string(FILE *fp, size_t size) {
+    char  *str;
+    int    k;
+    size_t fp_len = 0;
+    str = realloc(NULL, sizeof(*str) * size);
+    if (!str) {
+        return str;
+    }
+    while (EOF != (k = fgetc(fp)) && k != '\n') {
+        str[fp_len++] = k;
+        if (fp_len == size) {
+            str = realloc(str, sizeof(*str) * (size += 256));
+            if (!str) {
+                return str;
+            }
+        }
+    }
+    str[fp_len++] = '\0';
+    return realloc(str, sizeof(*str) * fp_len);
+}

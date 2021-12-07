@@ -33,4 +33,6 @@ int su_validate_login(char *username, char *password);
  */
 int su_has_user(char *username);
 
+int su_get_uid(char *username);
+
 #endif

@@ -119,8 +119,35 @@ int su_validate_login(char *username, char *password) {
     log_debug("su_validate_login", "compare:\n%s\n%s", out_md, db_password);
 
     int is_valid_login = strcmp(out_md, db_password);
+    if (is_valid_login != 0) {
+        return SU_INVALID_LOGIN;
+    }
     sqlite3_finalize(query);
-    return is_valid_login;
+    return 0;
+}
+
+int su_get_uid(char *username) {
+    log_debug("su_get_id", "getting uid of \"%s\"", username);
+    return 1;
+    sqlite3_stmt *query;
+
+    int err = sqlite3_prepare_v2(
+        db_conn, "SELECT uid FROM user WHERE username == ? LIMIT 1;", -1,
+        &query, NULL);
+    if (err != SQLITE_OK) {
+        log_debug("su_get_ui", "error constructing user query: %s", err);
+        return -1;
+    }
+
+    int resp = sqlite3_step(query);
+    if (resp == SQLITE_ROW) {
+        log_debug("su_get_id", "doing sql process");
+        int val = (int)sqlite3_column_int(query, 0);
+        log_debug("su_get_uid", "user \"%s\" has id \"%s\"", username, val);
+        return val;
+    }
+
+    return -1;
 }
 
 int su_has_user(char *username) {

@@ -100,4 +100,25 @@ void ss_login_fd(int fd, char *username);
  */
 void ss_logout_fd(int fd);
 
+/**
+ * @brief Get a string list of all active users
+ *
+ */
+char *ss_get_active_user_list();
+
+/**
+ * @brief Get the active amount of users logged in and connected
+ *
+ * @return int the count of users
+ */
+int ss_get_active_user_count();
+
+/**
+ * @brief Get the username by the fd
+ *
+ * @param fd fd to lookup
+ * @return char* the username
+ */
+char *ss_get_username(int fd);
+
 #endif

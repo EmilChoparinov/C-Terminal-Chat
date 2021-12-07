@@ -165,3 +165,53 @@ void ss_logout_fd(int fd) {
     ss_state->active_users[fd_loc] = calloc(1, strlen(""));
     ss_state->active_users[fd_loc] = "\0";
 }
+
+int get_active_user_count() {
+    int count = 0;
+
+    for (int i = 0; i < SS_MAX_CHILDREN; i++) {
+        if (strcmp(ss_state->active_users[i], "") != 0) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
+char *ss_get_active_user_list() {
+    int size = 0;
+    for (int i = 0; i < SS_MAX_CHILDREN; i++) {
+        if (strcmp(ss_state->active_users[i], "") != 0) {
+            size += strlen(ss_state->active_users[i]) + 1;
+        }
+    }
+    char *s = calloc(1, size + 1);
+
+    for (int i = 0; i < SS_MAX_CHILDREN; i++) {
+        if (strcmp(ss_state->active_users[i], "") != 0) {
+            int   str_size = strlen(ss_state->active_users[i]) + 1;
+            char *str_copy = calloc(1, str_size);
+            strcpy(str_copy, ss_state->active_users[i]);
+            str_copy[str_size - 1] = ' ';
+            strcat(s, str_copy);
+        }
+    }
+
+    s[size - 1] = '\0';
+    return s;
+}
+
+char *ss_get_username(int fd) {
+    char *username = calloc(1, strlen(""));
+    *username = "";
+    if (fd < 0 || fd >= SS_MAX_CHILDREN) return username;
+    int fd_loc = 0;
+    while (ss_state->child_fd[fd_loc] != fd && fd_loc < SS_MAX_CHILDREN) {
+        fd_loc++;
+    }
+
+    if (fd_loc == SS_MAX_CHILDREN) return username;
+    free(username);
+
+    return ss_state->active_users[fd_loc];
+}

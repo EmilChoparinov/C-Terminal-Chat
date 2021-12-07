@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,11 +17,15 @@
 #include "utils.h"
 
 static void usage();
+static void ctrl_c_handler(int sig);
 static void setup_server_connection(uint16_t port, const char *host);
 static int  do_server_connection();
 static void establish_server_listener();
 
 int main(int argc, char **argv) {
+    /* signals to catch */
+    signal(SIGINT, ctrl_c_handler);
+
     uint16_t port;
 
     // validate cmd arguments
@@ -136,6 +141,17 @@ static void establish_server_listener() {
             }
         }
     }
+}
+
+static void ctrl_c_handler(int sig) {
+    log_debug("ctrl_c_handler", "caught a ctrl operation, cleaning up...");
+    char *msg = apim_create();
+    apim_add_param(msg, "CLOSE", 0);
+    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    free(msg);
+    close(cs_state.connection_fd);
+    cmdc_free_client_commands();
+    exit(0);
 }
 
 static void usage() {

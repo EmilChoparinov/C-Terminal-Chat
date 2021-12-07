@@ -45,3 +45,12 @@ char *utils_dup_str(char *src_str);
  * @param size the size of the hash
  */
 char *utils_md_to_string(unsigned char *md, int size);
+
+/**
+ * @brief capture an undefined length of a string from the user
+ * 
+ * @param fp the file to capture from
+ * @param size the intial size
+ * @return char* the captured string
+ */
+char *utils_capture_n_string(FILE *fp, size_t size);

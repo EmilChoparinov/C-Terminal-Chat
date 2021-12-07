@@ -109,6 +109,14 @@ int cmdc_register(char **args, int argc) {
 
 int cmdc_users(char **args, int argc) {
     log_debug("cmdc_users", "listing users");
+
+    char *msg = apim_create();
+    apim_add_param(msg, "USERS", 0);
+    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    free(msg);
+
+    printf("Getting list of users:\n");
+
     return 0;
 }
 
@@ -143,6 +151,20 @@ int cmdc_server_response(char **args, int argc) {
     return 0;
 }
 
+int cmdc_history(char **args, int argc) {
+    log_debug("cmdc_history", "Revieved history command");
+    if (argc != 2) {
+        printf("History command invalid, do /help to get command format");
+        return 0;
+    }
+    char *msg = apim_create();
+    apim_add_param(msg, "HISTORY", 0);
+    apim_add_param(msg, args[1], 1);
+    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    free(msg);
+    return 0;
+}
+
 void cmdc_setup_client_commands() {
     cmd_create_command_list(&cmdc_commands);
 
@@ -153,6 +175,7 @@ void cmdc_setup_client_commands() {
     cmd_register_command(&cmdc_commands, "/register", &cmdc_register);
     cmd_register_command(&cmdc_commands, "/users", &cmdc_users);
     cmd_register_command(&cmdc_commands, "/help", &cmdc_help);
+    cmd_register_command(&cmdc_commands, "/history", &cmdc_history);
 
     /* SERVER RECEIVED COMMANDS */
     cmd_register_command(&cmdc_commands, "GLOBAL", &cmdc_global);

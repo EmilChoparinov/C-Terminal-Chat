@@ -6,6 +6,7 @@
 #include "api-messages.h"
 #include "commands.h"
 #include "logger.h"
+#include "server-db.h"
 #include "server-messages.h"
 #include "server-state.h"
 #include "server-users.h"
@@ -26,12 +27,11 @@ int cmdh_close(char **args, int argc);
 int cmdh_logout(char **args, int argc);
 
 int cmdh_msg_global(char **args, int argc) {
+    if (argc != 2) return 0;
     if (ss_is_fd_logged_in(cur_fd) == 1) {
         char *api_msg = apim_create();
         apim_add_param(api_msg, "SERV_RESPONSE", 0);
-        apim_add_param(
-            api_msg,
-            "Your message was not sent, please login to use this server.", 1);
+        apim_add_param(api_msg, "You are not logged in.", 1);
         send(cur_fd, api_msg, strlen(api_msg), 0);
         return 0;
     }
@@ -40,7 +40,7 @@ int cmdh_msg_global(char **args, int argc) {
     time(&cur_date);
     char date[sizeof "2021-07-07T08:08:09Z"];
     strftime(date, sizeof(date), "%Y-%m-%d %I:%M:%S", localtime(&cur_date));
-    char name[20] = "[NAME]";
+    char *name = ss_get_username(cur_fd);
 
     // print to server for server viewing reference
     printf("%s %s (%d): %s\n", date, name, cur_fd, args[1]);
@@ -55,12 +55,22 @@ int cmdh_msg_global(char **args, int argc) {
     apim_add_param(api_msg, out, 1);
     sm_propogate_message(cur_fd, api_msg);
 
+    char *username = ss_get_username(cur_fd);
+    int   uid = su_get_uid(username);
+    sm_global_save_message(args[1], uid, date);
+
     // cleanups here
     free(api_msg);
     return 0;
 }
 
+int cmdh_msg_pm(char **args, int argc) {
+    if (argc != 3) return 0;
+    return 0;
+}
+
 int cmdh_register(char **args, int argc) {
+    if (argc != 3) return 0;
     log_debug("cmdh_register", "size of password: %d", sizeof(args[2]));
     int   response = su_register_user(args[1], args[2]);
     char *api_msg = apim_create();
@@ -78,11 +88,14 @@ int cmdh_register(char **args, int argc) {
 
     send(cur_fd, api_msg, strlen(api_msg), 0);
 
-    cmdh_login(args, argc);  // chain to a login
+    if (response == 0) {
+        cmdh_login(args, argc);  // chain to a login
+    }
     return 0;
 }
 
 int cmdh_login(char **args, int argc) {
+    if (argc != 3) return 0;
     log_debug("cmdh_login", "do login with \"%s\" and \"%s\"", args[1],
               args[2]);
     int   response = su_validate_login(args[1], args[2]);
@@ -130,6 +143,79 @@ int cmdh_logout(char **args, int argc) {
     return 0;
 }
 
+int cmdh_get_active_users(char **args, int argc) {
+    log_debug("cmdh_get_active_users", "got active users:\n%s",
+              ss_get_active_user_list());
+
+    char *api_msg = apim_create();
+    apim_add_param(api_msg, "SERV_RESPONSE", 0);
+    if (ss_is_fd_logged_in(cur_fd) == 1) {
+        apim_add_param(api_msg, "You are not logged in.", 1);
+    } else if (ss_get_active_size() == 0) {
+        apim_add_param(api_msg, "No users currently logged in.", 1);
+    } else {
+        apim_add_param(api_msg, ss_get_active_user_list(), 1);
+    }
+
+    send(cur_fd, api_msg, strlen(api_msg), 0);
+    return 0;
+}
+
+int cmdh_get_global_history(char **args, int argc) {
+    log_debug("cmdh_get_global_history", "doing history request with: %d",
+              atoi(args[1]));
+    char *msg = apim_create();
+    apim_add_param(msg, "SERV_RESPONSE", 0);
+    if (argc != 2 || atoi(args[1]) > 15) {
+        apim_add_param(msg, "Bad Request", 1);
+        send(cur_fd, msg, strlen(msg), 0);
+        return 0;
+    }
+
+    sqlite3_stmt *query;
+
+    int sql_err = sqlite3_prepare_v2(db_conn,
+                                     "SELECT username, message, created_at \
+        FROM message LEFT JOIN user \
+        WHERE message.from_user == user.uid \
+        ORDER BY id \
+        DESC LIMIT 10",
+                                     -1, &query, NULL);
+    if (sql_err != SQLITE_OK) {
+        log_debug("sm_global_create_history_stepper",
+                  "error occured: ", sql_err);
+        return 0;
+    }
+
+    // sqlite3_bind_int(query, 1, atoi(args[1]));
+
+    for (;;) {
+        int step_response = sqlite3_step(query);
+        if (step_response == SQLITE_DONE) {
+            log_debug("cmdh_get_global_history", "step as done is done");
+            break;
+        }
+        if (step_response != SQLITE_ROW) {
+            log_debug("cmdh_get_global_history", "step as row is done");
+            log_debug("cmdh_get_global_history", "error occured: %s",
+                      sqlite3_errmsg(db_conn));
+            break;
+        }
+        // format the message into `out`
+        char out[4096];
+        sprintf(out, "%s %s: %s\n", sqlite3_column_text(query, 2),
+                sqlite3_column_text(query, 0), sqlite3_column_text(query, 1));
+        log_debug("cmdh_get_global_history", "message is: %s", out);
+        char *msg = apim_create();
+        apim_add_param(msg, "SERV_RESPONSE", 0);
+        apim_add_param(msg, out, 1);
+        send(cur_fd, msg, strlen(msg), 0);
+        free(msg);
+    }
+    sqlite3_finalize(query);
+    return 0;
+}
+
 void cmdh_setup_server_commands() {
     cmd_create_command_list(&cmdh_commands);
 
@@ -139,6 +225,8 @@ void cmdh_setup_server_commands() {
     cmd_register_command(&cmdh_commands, "REGISTER", &cmdh_register);
     cmd_register_command(&cmdh_commands, "LOGIN", &cmdh_login);
     cmd_register_command(&cmdh_commands, "LOGOUT", &cmdh_logout);
+    cmd_register_command(&cmdh_commands, "USERS", &cmdh_get_active_users);
+    cmd_register_command(&cmdh_commands, "HISTORY", &cmdh_get_global_history);
 }
 
 int cmdh_execute_command(char *command, int from_fd) {
