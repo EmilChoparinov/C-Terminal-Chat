@@ -32,20 +32,27 @@ static int argc_to_pos(char *s, int argc) {
 }
 
 void apim_add_param(char *s, char *param, int argc) {
-    int start_pos = argc_to_pos(s, argc);
+    char *arg = malloc(sizeof(char) * 1);
+    arg[0] = '\0';
+    utils_append(&arg, "||");
+    utils_append(&arg, param);
+    utils_append(&s, arg);
+    log_debug("apim_add_param", "added arg '%s'", arg);
+    log_debug("apim_add_param", "new message is: %s", s);
+    // int start_pos = argc_to_pos(s, argc);
 
-    s[start_pos] = '|';
-    s[start_pos + 1] = '|';
+    // s[start_pos] = '|';
+    // s[start_pos + 1] = '|';
 
-    int param_length = strlen(param);
-    for (int i = 0; i < param_length; i++) {
-        s[start_pos + i + 2] = param[i];
-    }
+    // int param_length = strlen(param);
+    // for (int i = 0; i < param_length; i++) {
+    //     s[start_pos + i + 2] = param[i];
+    // }
 }
 
 char *apim_create() {
-    char *msg = malloc(sizeof(char) * 4096);
-    memset(msg, '\0', sizeof(char) * 4096);
+    char *msg = malloc(sizeof(char) * 1);
+    msg[0] = '\0';
 
     return msg;
 }
@@ -140,6 +147,7 @@ void apim_free_args(char **args, int argc) {
 }
 
 void apim_finish(char *s) {
+    log_debug("apim_finish", "finishing api msg '%s'", s);
     size_t len = strlen(s);
     int    length = snprintf(NULL, 0, "%d", (int)len);
     char   str_len[length];

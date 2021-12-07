@@ -86,11 +86,9 @@ char **utils_str_to_args(char *arg_str, int *argc) {
 
         args[arg_pos][end_arg_pos] = '\0';
 
-        log_debug("utils_str_to-args", "made is here");
         arg_pos++;
         i++;
     }
-    log_debug("utils_str_to-args", "finished str to args");
     return args;
 }
 
@@ -138,4 +136,13 @@ void utils_prepend(char *prep, const char *dest) {
     memcpy(prep, dest, len);
     log_debug("utils_prepend", "prepended '%s' to '%s' with output '%s'", prep,
               dest, dest);
+}
+
+void utils_append(char **dest, char *str) {
+    int   dest_len = strlen(*dest);
+    int   str_len = strlen(str);
+    int   alloc_len = dest_len + str_len + 1;
+    char *temp = realloc(*dest, alloc_len);
+    *dest = temp;
+    strcat(*dest, str);
 }

@@ -62,3 +62,11 @@ char *utils_capture_n_string(FILE *fp, size_t size);
  * @param dest the destination string
  */
 void utils_prepend(char *prep, char *dest);
+
+/**
+ * @brief append N sized string to a given string destination
+ *
+ * @param dest string to get str appended to
+ * @param str str to append
+ */
+void utils_append(char **dest, char *str);

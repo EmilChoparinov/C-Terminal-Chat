@@ -89,10 +89,7 @@ int cmdh_register(char **args, int argc) {
     }
 
     apim_finish(api_msg);
-    int n = send(cur_fd, api_msg, strlen(api_msg), 0);
-    if (n < 0) {
-        log_debug("cmdh_register", "uhoh");
-    }
+    send(cur_fd, api_msg, strlen(api_msg), 0);
 
     if (response == 0) {
         cmdh_login(args, argc);  // chain to a login
@@ -111,6 +108,7 @@ int cmdh_login(char **args, int argc) {
     if (ss_is_user_logged_in(args[1]) == 0) {
         apim_add_param(api_msg,
                        "Already logged in, logout of other account first.", 1);
+        apim_finish(api_msg);
         send(cur_fd, api_msg, strlen(api_msg), 0);
         free(api_msg);
         return 0;
@@ -178,6 +176,7 @@ int cmdh_get_global_history(char **args, int argc) {
     apim_add_param(msg, "SERV_RESPONSE", 0);
     if (argc != 2 || atoi(args[1]) > 15) {
         apim_add_param(msg, "Bad Request", 1);
+        apim_finish(msg);
         send(cur_fd, msg, strlen(msg), 0);
         return 0;
     }

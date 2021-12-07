@@ -115,9 +115,6 @@ static void listen_for_connections() {
 
             // if child connection exists and has incomming data, process
             if (child_fd != -1 && FD_ISSET(child_fd, &readfds)) {
-                // char message[4096] = "";
-                // recv(child_fd, message, sizeof(message), 0);
-
                 char *message;
                 apim_capture_socket_msg(child_fd, &message);
                 log_debug("listen_for_connections",
