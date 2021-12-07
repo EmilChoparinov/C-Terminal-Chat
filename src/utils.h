@@ -48,9 +48,17 @@ char *utils_md_to_string(unsigned char *md, int size);
 
 /**
  * @brief capture an undefined length of a string from the user
- * 
+ *
  * @param fp the file to capture from
  * @param size the intial size
  * @return char* the captured string
  */
 char *utils_capture_n_string(FILE *fp, size_t size);
+
+/**
+ * @brief prepend a string to a string
+ *
+ * @param prep the prepend value
+ * @param dest the destination string
+ */
+void utils_prepend(char *prep, char *dest);

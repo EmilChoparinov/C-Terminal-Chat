@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "api-messages.h"
 #include "logger.h"
 #include "server-commands.h"
 #include "server-db.h"
@@ -114,17 +115,27 @@ static void listen_for_connections() {
 
             // if child connection exists and has incomming data, process
             if (child_fd != -1 && FD_ISSET(child_fd, &readfds)) {
-                char message[4096] = "";
-                recv(child_fd, message, sizeof(message), 0);
+                // char message[4096] = "";
+                // recv(child_fd, message, sizeof(message), 0);
+
+                char *message;
+                apim_capture_socket_msg(child_fd, &message);
                 log_debug("listen_for_connections",
                           "recieved message \"%s\" from %d", message, child_fd);
 
-                if (strlen(message) == 0) {
-                    // TODO: handle connection recieving empty messagees, we
-                    // shouldnt be breaking
-                    break;
+                char *health_check = apim_create();
+                apim_add_param(health_check, "HEALTH", 0);
+                apim_finish(health_check);
+                int n = send(child_fd, health_check, strlen(health_check), 0);
+                log_debug("apim_capture_socket_msg", "n value on SEND: %d", n);
+                if (n < 0) {
+                    log_debug("apim_capture_socket_msg", "tunnel is dead");
+                    cmdh_execute_command("||CLOSE", child_fd);
+                } else if (message[0] == '\0') {  // default to close
+                    cmdh_execute_command("||CLOSE", child_fd);
+                } else {
+                    cmdh_execute_command(message, child_fd);
                 }
-                cmdh_execute_command(message, child_fd);
                 log_debug("listen_for_connections", "end of message process\n");
             }
         }
@@ -132,8 +143,7 @@ static void listen_for_connections() {
         // if someone has typed something into the terminal, read that input and
         // process
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
-            char message[4096] = "";
-            fgets(message, sizeof(message), stdin);
+            char *message = utils_capture_n_string(stdin, 4096);
             utils_clear_newlines(message);
             if (strcmp(message, "q") == 0) {
                 log_debug("listen_for_connections", "closing server...");

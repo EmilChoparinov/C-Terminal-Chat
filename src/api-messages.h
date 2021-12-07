@@ -24,6 +24,20 @@ char *apim_read_param(char *s, int argc);
 char *apim_create();
 
 /**
+ * @brief Closes an api message and gets ready to send over
+ *
+ */
+void apim_finish(char *s);
+
+/**
+ * @brief Capture a message within a socket
+ *
+ * @param fd the socket to capture
+ * @return char* message returned
+ */
+void apim_capture_socket_msg(int fd, char **m_out);
+
+/**
  * @brief Get the count of arguments within a message
  *
  * @param s message to count args of

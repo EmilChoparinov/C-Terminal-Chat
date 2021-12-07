@@ -1,8 +1,11 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/socket.h>
 
 #include "logger.h"
 #include "string.h"
+#include "utils.h"
 
 static int argc_to_pos(char *s, int argc) {
     int pos = 0, args_seen = 0, pipes_seen_in_row = 0;
@@ -42,7 +45,6 @@ void apim_add_param(char *s, char *param, int argc) {
 
 char *apim_create() {
     char *msg = malloc(sizeof(char) * 4096);
-
     memset(msg, '\0', sizeof(char) * 4096);
 
     return msg;
@@ -135,4 +137,48 @@ void apim_free_args(char **args, int argc) {
     }
     log_debug("apim_free_args", "freed args, now freeing main pointer");
     free(args);
+}
+
+void apim_finish(char *s) {
+    size_t len = strlen(s);
+    int    length = snprintf(NULL, 0, "%d", (int)len);
+    char   str_len[length];
+    sprintf(str_len, "%lu", len);
+    log_debug("apim_finish",
+              "count info:\nlen = %lu\nlength = %d\nstr_len = %s", len, length,
+              str_len);
+    utils_prepend(s, str_len);
+    log_debug("apim_finish", "finished api msg is: '%s'", s);
+}
+
+void apim_capture_socket_msg(int fd, char **m_out) {
+    char msg[99999];
+    int  n = recv(fd, msg, sizeof(msg), 0);
+    log_debug("apim_capture_socket_msg", "n value on RECV: %d", n);
+    if (n < 0) {
+        log_debug("apim_capture_socket_msg",
+                  "read failed, abort connection suggested. msg read as: %s",
+                  msg);
+        *m_out = malloc(sizeof(char) * 1);
+        (*m_out)[0] = '\0';
+        return;
+    }
+
+    log_debug("apim_capture_socket_msg", "captured message: %s", msg);
+
+    int first_non_digit = 0;
+    while (first_non_digit < 5 && isdigit(msg[first_non_digit]) != 0)
+        first_non_digit++;
+    char api_msg_len[first_non_digit + 1];
+    api_msg_len[first_non_digit] = '\0';
+    memcpy(api_msg_len, &msg[0], first_non_digit);
+    log_debug("apim_capture_socket_msg",
+              "capture stats:\nfnd: %d\napi_msg_len: %s", first_non_digit,
+              api_msg_len);
+
+    *m_out = malloc(sizeof(char) * atoi(api_msg_len) + 1);
+    memcpy(*m_out, &msg[first_non_digit], atoi(api_msg_len));
+    (*m_out)[atoi(api_msg_len)] = '\0';
+
+    log_debug("apim_capture_socket_msg", "completed message is: %s", *m_out);
 }

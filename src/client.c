@@ -106,21 +106,18 @@ static void establish_server_listener() {
             return;
         }
 
-        char message[4096] = "";
         if (FD_ISSET(cs_state.connection_fd, &readfds)) {
-            int n = recv(cs_state.connection_fd, message, sizeof(message), 0);
-            if (n < 0) {
-                printf("error on reading");
-            } else {
-                int should_exit = cmdc_execute_server_command(message);
-                if (should_exit != 0) {
-                    return;
-                }
+            char *message;
+            apim_capture_socket_msg(cs_state.connection_fd, &message);
+            int should_exit = cmdc_execute_server_command(message);
+            if (should_exit != 0) {
+                return;
             }
         }
 
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
-            fgets(message, sizeof(message), stdin);
+            char *message;
+            message = utils_capture_n_string(stdin, 10);
             utils_clear_newlines(message);
             if (cmd_has_command_prop(message) == 0) {
                 int should_exit = cmdc_execute_command(message);
@@ -131,14 +128,20 @@ static void establish_server_listener() {
                 char *api_msg = apim_create();
                 apim_add_param(api_msg, "GLOBAL", 0);
                 apim_add_param(api_msg, message, 1);
+                apim_finish(api_msg);
+                log_debug("establish_server_connection", "sending api msg:\n%s",
+                          api_msg);
                 int n =
                     send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
                 if (n < 0) {
                     log_debug("establish_server_connection",
                               "error on writing");
+                    printf("Server is unavailable, closing client");
+                    exit(0);
                 }
                 free(api_msg);
             }
+            free(message);
         }
     }
 }
@@ -148,6 +151,7 @@ static void ctrl_c_handler(int sig) {
     char *msg = apim_create();
     apim_add_param(msg, "CLOSE", 0);
     send(cs_state.connection_fd, msg, strlen(msg), 0);
+    apim_finish(msg);
     free(msg);
     close(cs_state.connection_fd);
     cmdc_free_client_commands();

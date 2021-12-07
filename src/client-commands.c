@@ -17,6 +17,7 @@ int cmdc_exit(char **args, int argc) {
 
     char *msg = apim_create();
     apim_add_param(msg, "CLOSE", 0);
+    apim_finish(msg);
     send(cs_state.connection_fd, msg, strlen(msg), 0);
 
     close(cs_state.connection_fd);
@@ -55,6 +56,7 @@ int cmdc_login(char **args, int argc) {
     apim_add_param(msg, "LOGIN", 0);
     apim_add_param(msg, args[1], 1);
     apim_add_param(msg, out, 2);
+    apim_finish(msg);
     send(cs_state.connection_fd, msg, strlen(msg), 0);
     free(msg);
 
@@ -66,6 +68,7 @@ int cmdc_logout(char **args, int argc) {
 
     char *api_msg = apim_create();
     apim_add_param(api_msg, "LOGOUT", 0);
+    apim_finish(api_msg);
     send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
     free(api_msg);
     return 0;
@@ -101,6 +104,7 @@ int cmdc_register(char **args, int argc) {
     apim_add_param(msg, "REGISTER", 0);
     apim_add_param(msg, args[1], 1);
     apim_add_param(msg, out, 2);
+    apim_finish(msg);
     send(cs_state.connection_fd, msg, strlen(msg), 0);
     free(msg);
 
@@ -112,6 +116,7 @@ int cmdc_users(char **args, int argc) {
 
     char *msg = apim_create();
     apim_add_param(msg, "USERS", 0);
+    apim_finish(msg);
     send(cs_state.connection_fd, msg, strlen(msg), 0);
     free(msg);
 
@@ -160,8 +165,14 @@ int cmdc_history(char **args, int argc) {
     char *msg = apim_create();
     apim_add_param(msg, "HISTORY", 0);
     apim_add_param(msg, args[1], 1);
+    apim_finish(msg);
     send(cs_state.connection_fd, msg, strlen(msg), 0);
     free(msg);
+    return 0;
+}
+int cmdc_server_health_ping(char **args, int argc) {
+    log_debug("cmdc_server_health_ping",
+              "server pinged client for connection test");
     return 0;
 }
 
@@ -183,6 +194,7 @@ void cmdc_setup_client_commands() {
                          &cmdc_server_disconnected);
     cmd_register_command(&cmdc_commands, "SERV_RESPONSE",
                          &cmdc_server_response);
+    cmd_register_command(&cmdc_commands, "HEALTH", &cmdc_server_health_ping);
 }
 
 void cmdc_free_client_commands() { cmd_deregister(&cmdc_commands); }

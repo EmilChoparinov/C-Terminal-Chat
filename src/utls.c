@@ -65,13 +65,18 @@ char **utils_str_to_args(char *arg_str, int *argc) {
     while (arg_str[i] != '\0' && arg_pos < arg_count) {
         int end_arg_pos = 0;
         while (arg_str[i + end_arg_pos] != ' ' &&
-               arg_str[i + end_arg_pos] != '\n') {
+               arg_str[i + end_arg_pos] != '\n' &&
+               arg_str[i + end_arg_pos] != '\0') {
             end_arg_pos++;
         }
 
         log_debug("utils_str_to_args", "allocating %d for arg %d", end_arg_pos,
                   arg_pos);
-        args[arg_pos] = malloc(sizeof(char) * (end_arg_pos + 1));
+        log_debug("utils_str_to_args", "str is size %d", strlen(arg_str));
+        args[arg_pos] = malloc(sizeof(char) * (end_arg_pos + 2));
+        if (args[arg_pos] == NULL) {
+            log_debug("utils_str_to-args", "malloc failed?");
+        }
 
         int copy_start = i;
         while (i < copy_start + end_arg_pos) {
@@ -81,9 +86,11 @@ char **utils_str_to_args(char *arg_str, int *argc) {
 
         args[arg_pos][end_arg_pos] = '\0';
 
+        log_debug("utils_str_to-args", "made is here");
         arg_pos++;
         i++;
     }
+    log_debug("utils_str_to-args", "finished str to args");
     return args;
 }
 
@@ -104,7 +111,7 @@ char *utils_dup_str(char *src_str) {
     return str;
 }
 
-char *capture_n_string(FILE *fp, size_t size) {
+char *utils_capture_n_string(FILE *fp, size_t size) {
     char  *str;
     int    k;
     size_t fp_len = 0;
@@ -123,4 +130,12 @@ char *capture_n_string(FILE *fp, size_t size) {
     }
     str[fp_len++] = '\0';
     return realloc(str, sizeof(*str) * fp_len);
+}
+
+void utils_prepend(char *prep, const char *dest) {
+    size_t len = strlen(dest);
+    memmove(prep + len, prep, strlen(prep) + 1);
+    memcpy(prep, dest, len);
+    log_debug("utils_prepend", "prepended '%s' to '%s' with output '%s'", prep,
+              dest, dest);
 }

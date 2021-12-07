@@ -32,6 +32,7 @@ int cmdh_msg_global(char **args, int argc) {
         char *api_msg = apim_create();
         apim_add_param(api_msg, "SERV_RESPONSE", 0);
         apim_add_param(api_msg, "You are not logged in.", 1);
+        apim_finish(api_msg);
         send(cur_fd, api_msg, strlen(api_msg), 0);
         return 0;
     }
@@ -53,6 +54,7 @@ int cmdh_msg_global(char **args, int argc) {
     char *api_msg = apim_create();
     apim_add_param(api_msg, "GLOBAL", 0);
     apim_add_param(api_msg, out, 1);
+    apim_finish(api_msg);
     sm_propogate_message(cur_fd, api_msg);
 
     char *username = ss_get_username(cur_fd);
@@ -86,7 +88,11 @@ int cmdh_register(char **args, int argc) {
         apim_add_param(api_msg, "Register successful!", 1);
     }
 
-    send(cur_fd, api_msg, strlen(api_msg), 0);
+    apim_finish(api_msg);
+    int n = send(cur_fd, api_msg, strlen(api_msg), 0);
+    if (n < 0) {
+        log_debug("cmdh_register", "uhoh");
+    }
 
     if (response == 0) {
         cmdh_login(args, argc);  // chain to a login
@@ -119,12 +125,14 @@ int cmdh_login(char **args, int argc) {
         ss_login_fd(cur_fd, args[1]);
         apim_add_param(api_msg, "Logged in!", 1);
     }
+    apim_finish(api_msg);
     send(cur_fd, api_msg, strlen(api_msg), 0);
     free(api_msg);
     return 0;
 }
 
 int cmdh_close(char **args, int argc) {
+    log_debug("cmdh_close", "user %d logged out, closing...", cur_fd);
     ss_logout_fd(cur_fd);
     ss_remove_child_connection(cur_fd);
     return 0;
@@ -139,6 +147,7 @@ int cmdh_logout(char **args, int argc) {
         ss_logout_fd(cur_fd);
         apim_add_param(api_msg, "Successfully logged you out.", 1);
     }
+    apim_finish(api_msg);
     send(cur_fd, api_msg, strlen(api_msg), 0);
     return 0;
 }
@@ -157,6 +166,7 @@ int cmdh_get_active_users(char **args, int argc) {
         apim_add_param(api_msg, ss_get_active_user_list(), 1);
     }
 
+    apim_finish(api_msg);
     send(cur_fd, api_msg, strlen(api_msg), 0);
     return 0;
 }
@@ -209,6 +219,7 @@ int cmdh_get_global_history(char **args, int argc) {
         char *msg = apim_create();
         apim_add_param(msg, "SERV_RESPONSE", 0);
         apim_add_param(msg, out, 1);
+        apim_finish(msg);
         send(cur_fd, msg, strlen(msg), 0);
         free(msg);
     }
