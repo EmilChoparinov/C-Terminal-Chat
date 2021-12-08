@@ -9,6 +9,7 @@
 #include "server-db.h"
 #include "server-state.h"
 #include "sql-inject-checker.h"
+#include "ssl-nonblock.h"
 
 void sm_propogate_message(int from_fd, char *message) {
     int *connections = ss_get_active_connections();
@@ -26,9 +27,15 @@ void sm_propogate_message(int from_fd, char *message) {
         log_debug("sm_propogate_message",
                   "reading for connection %d as pos %d...", connections[i], i);
         int cur_fd = connections[i];
-        if (cur_fd != from_fd && cur_fd != ss_state->server_fd) {
+
+        if (cur_fd != from_fd && cur_fd != ss_state->server_fd &&
+            ss_is_fd_logged_in(cur_fd) == 0) {
             log_debug("sm_propogate_message", "sending message to %d", cur_fd);
-            send(cur_fd, message, strlen(message), 0);
+            int fd_loc = ss_get_fd_loc(cur_fd);
+            ssl_block_write(ss_state->ssl_fd[fd_loc], cur_fd, message,
+                            strlen(message));
+            // SSL_write(ss_state->ssl_fd[fd_loc], message, strlen(message));
+            // send(cur_fd, message, strlen(message), 0);
         }
     }
 

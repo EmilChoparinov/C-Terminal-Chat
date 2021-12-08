@@ -2,6 +2,7 @@
 #define _SERVER_STATE_H_
 
 #include <netinet/in.h>
+#include <openssl/ssl.h>
 
 /**
  * @brief The total amount of allowed connections to this server.
@@ -18,6 +19,8 @@ typedef struct server_state {
     int                child_fd[SS_MAX_CHILDREN];
     int                child_pending[SS_MAX_CHILDREN];
     char              *active_users[SS_MAX_CHILDREN];
+    SSL               *ssl_fd[SS_MAX_CHILDREN];
+    SSL_CTX           *ssl_ctx[SS_MAX_CHILDREN];
     struct sockaddr_in serv;
 } server_state;
 
@@ -119,6 +122,22 @@ int ss_get_active_user_count();
  * @param fd fd to lookup
  * @return char* the username
  */
-char *ss_get_username(int fd);
+char **ss_get_username(int fd);
+
+/**
+ * @brief Gets the current fd of a logged in user
+ *
+ * @param username username to find
+ * @return int fd
+ */
+int ss_get_fd_from_username(char *username);
+
+/**
+ * @brief Get the internal location of a FD
+ * 
+ * @param fd the fd to find
+ * @return int the location of the FD
+ */
+int ss_get_fd_loc(int fd);
 
 #endif

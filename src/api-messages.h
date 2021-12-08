@@ -1,11 +1,13 @@
 
+#include <openssl/ssl.h>
+
 /**
  * @brief add a parameter to a string message
  *
  * @param s the string message
  * @param param the param to add
  */
-void apim_add_param(char *s, char *param, int argc);
+void apim_add_param(char **s, char *param, int argc);
 
 /**
  * @brief get a parameter found within a string message
@@ -27,7 +29,7 @@ char *apim_create();
  * @brief Closes an api message and gets ready to send over
  *
  */
-void apim_finish(char *s);
+void apim_finish(char **s);
 
 /**
  * @brief Capture a message within a socket
@@ -35,7 +37,7 @@ void apim_finish(char *s);
  * @param fd the socket to capture
  * @return char* message returned
  */
-void apim_capture_socket_msg(int fd, char **m_out);
+void apim_capture_socket_msg(SSL *ssl, int fd, char **m_out);
 
 /**
  * @brief Get the count of arguments within a message

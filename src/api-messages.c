@@ -1,9 +1,11 @@
 #include <ctype.h>
+#include <openssl/ssl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
 
 #include "logger.h"
+#include "ssl-nonblock.h"
 #include "string.h"
 #include "utils.h"
 
@@ -31,23 +33,14 @@ static int argc_to_pos(char *s, int argc) {
     return pos;
 }
 
-void apim_add_param(char *s, char *param, int argc) {
+void apim_add_param(char **s, char *param, int argc) {
     char *arg = malloc(sizeof(char) * 1);
     arg[0] = '\0';
     utils_append(&arg, "||");
     utils_append(&arg, param);
-    utils_append(&s, arg);
+    utils_append(s, arg);
     log_debug("apim_add_param", "added arg '%s'", arg);
-    log_debug("apim_add_param", "new message is: %s", s);
-    // int start_pos = argc_to_pos(s, argc);
-
-    // s[start_pos] = '|';
-    // s[start_pos + 1] = '|';
-
-    // int param_length = strlen(param);
-    // for (int i = 0; i < param_length; i++) {
-    //     s[start_pos + i + 2] = param[i];
-    // }
+    log_debug("apim_add_param", "new message is: %s", *s);
 }
 
 char *apim_create() {
@@ -146,22 +139,28 @@ void apim_free_args(char **args, int argc) {
     free(args);
 }
 
-void apim_finish(char *s) {
-    log_debug("apim_finish", "finishing api msg '%s'", s);
-    size_t len = strlen(s);
+void apim_finish(char **s) {
+    log_debug("apim_finish", "finishing api msg '%s'", *s);
+    size_t len = strlen(*s);
     int    length = snprintf(NULL, 0, "%d", (int)len);
     char   str_len[length];
     sprintf(str_len, "%lu", len);
     log_debug("apim_finish",
               "count info:\nlen = %lu\nlength = %d\nstr_len = %s", len, length,
               str_len);
-    utils_prepend(s, str_len);
-    log_debug("apim_finish", "finished api msg is: '%s'", s);
+    char *finished_msg = malloc(sizeof(char) * 1);
+    finished_msg[0] = '\0';
+    utils_append(&finished_msg, str_len);
+    utils_append(&finished_msg, *s);
+    *s = finished_msg;
+    log_debug("apim_finish", "finished api msg is: '%s'", *s);
 }
 
-void apim_capture_socket_msg(int fd, char **m_out) {
+void apim_capture_socket_msg(SSL *ssl, int fd, char **m_out) {
     char msg[99999];
-    int  n = recv(fd, msg, sizeof(msg), 0);
+    // int  n = recv(fd, msg, sizeof(msg), 0);
+    // int n = SSL_read(ssl, msg, strlen(msg));
+    int n = ssl_block_read(ssl, fd, msg, sizeof(msg));
     log_debug("apim_capture_socket_msg", "n value on RECV: %d", n);
     if (n < 0) {
         log_debug("apim_capture_socket_msg",
@@ -184,7 +183,7 @@ void apim_capture_socket_msg(int fd, char **m_out) {
               "capture stats:\nfnd: %d\napi_msg_len: %s", first_non_digit,
               api_msg_len);
 
-    *m_out = malloc(sizeof(char) * atoi(api_msg_len) + 1);
+    *m_out = malloc(sizeof(char) * (atoi(api_msg_len) + 5));
     memcpy(*m_out, &msg[first_non_digit], atoi(api_msg_len));
     (*m_out)[atoi(api_msg_len)] = '\0';
 

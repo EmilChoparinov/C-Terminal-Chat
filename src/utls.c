@@ -65,7 +65,6 @@ char **utils_str_to_args(char *arg_str, int *argc) {
     while (arg_str[i] != '\0' && arg_pos < arg_count) {
         int end_arg_pos = 0;
         while (arg_str[i + end_arg_pos] != ' ' &&
-               arg_str[i + end_arg_pos] != '\n' &&
                arg_str[i + end_arg_pos] != '\0') {
             end_arg_pos++;
         }
@@ -138,7 +137,7 @@ void utils_prepend(char *prep, const char *dest) {
               dest, dest);
 }
 
-void utils_append(char **dest, char *str) {
+void utils_append(char **dest, const char *str) {
     int   dest_len = strlen(*dest);
     int   str_len = strlen(str);
     int   alloc_len = dest_len + str_len + 1;

@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdio.h>
 
 /**
  * @brief Given a string of characters representing a port, converts into
@@ -69,4 +70,4 @@ void utils_prepend(char *prep, char *dest);
  * @param dest string to get str appended to
  * @param str str to append
  */
-void utils_append(char **dest, char *str);
+void utils_append(char **dest, const char *str);

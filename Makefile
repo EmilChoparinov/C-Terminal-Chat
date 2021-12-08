@@ -44,3 +44,11 @@ clean-client:
 	rm client
 clean-db:
 	rm secure-chat.db
+
+ssl: server-key.pem server-self-cert.pem
+
+server-key.pem:
+	openssl genrsa -out server-key.pem
+
+server-self-cert.pem:
+	openssl req -x509 -key server-key.pem -out server-self-cert.pem -nodes -subj '/CN=server\.example\.com/'

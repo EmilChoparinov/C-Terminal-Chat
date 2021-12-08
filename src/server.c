@@ -1,4 +1,10 @@
 #include <netinet/in.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/ssl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,6 +18,7 @@
 #include "server-commands.h"
 #include "server-db.h"
 #include "server-state.h"
+#include "ssl-nonblock.h"
 #include "utils.h"
 
 //---- FUNCTION DECLARES -------------------------------------------------------
@@ -55,7 +62,7 @@ int main(int argc, char **argv) {
     create_server(port);
     bind(ss_state->server_fd, (struct sockaddr *)&ss_state->serv,
          sizeof(ss_state->serv));
-    printf("Listening for connections on port %d\n", port);
+    printf("Listening for connections on port %s\n", argv[2]);
 
     // setup listeners here
     listen_for_connections();
@@ -112,18 +119,26 @@ static void listen_for_connections() {
 
         for (int i = 0; i < SS_MAX_CHILDREN; i++) {
             int child_fd = ss_state->child_fd[i];
+            int fd_loc = ss_get_fd_loc(child_fd);
 
             // if child connection exists and has incomming data, process
-            if (child_fd != -1 && FD_ISSET(child_fd, &readfds)) {
+            if (child_fd != -1 && FD_ISSET(child_fd, &readfds) &&
+                ssl_has_data(ss_state->ssl_fd[fd_loc])) {
                 char *message;
-                apim_capture_socket_msg(child_fd, &message);
+                apim_capture_socket_msg(ss_state->ssl_fd[fd_loc], child_fd,
+                                        &message);
                 log_debug("listen_for_connections",
                           "recieved message \"%s\" from %d", message, child_fd);
 
                 char *health_check = apim_create();
-                apim_add_param(health_check, "HEALTH", 0);
-                apim_finish(health_check);
-                int n = send(child_fd, health_check, strlen(health_check), 0);
+                apim_add_param(&health_check, "HEALTH", 0);
+                apim_finish(&health_check);
+                int n = ssl_block_write(ss_state->ssl_fd[fd_loc], child_fd,
+                                        health_check, strlen(health_check));
+                // int n = SSL_write(ss_state->ssl_fd[fd_loc], health_check,
+                //   strlen(health_check));
+                // int n = send(child_fd, health_check, strlen(health_check),
+                // 0);
                 log_debug("apim_capture_socket_msg", "n value on SEND: %d", n);
                 if (n < 0) {
                     log_debug("apim_capture_socket_msg", "tunnel is dead");

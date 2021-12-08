@@ -10,6 +10,7 @@
 #include "api-messages.h"
 #include "logger.h"
 #include "server-messages.h"
+#include "ssl-nonblock.h"
 
 void ss_reset() {
     ss_state = malloc(sizeof(*ss_state));
@@ -18,6 +19,8 @@ void ss_reset() {
         ss_state->child_fd[i] = -1;
         ss_state->active_users[i] = calloc(1, strlen(""));
         ss_state->active_users[i] = "\0";
+        ss_state->ssl_ctx[i] = SSL_CTX_new(TLS_server_method());
+        ss_state->ssl_fd[i] = SSL_new(ss_state->ssl_ctx[i]);
     }
 }
 
@@ -29,6 +32,10 @@ void ss_remove_child_connection(int fd) {
         if (ss_state->child_fd[i] == fd) {
             ss_state->child_fd[i] = -1;
             ss_state->child_pending[i] = 0;
+            SSL_free(ss_state->ssl_fd[i]);
+            SSL_CTX_free(ss_state->ssl_ctx[i]);
+            ss_state->ssl_ctx[i] = SSL_CTX_new(TLS_server_method());
+            ss_state->ssl_fd[i] = SSL_new(ss_state->ssl_ctx[i]);
             return;
         }
     }
@@ -47,6 +54,17 @@ int ss_add_child_connection(int fd) {
     log_debug("ss_add_child_connection", "adding at loc: %d fd: %d", fd_loc,
               fd);
     ss_state->child_fd[fd_loc] = fd;
+
+    SSL_use_certificate_file(ss_state->ssl_fd[fd_loc], "server-self-cert.pem",
+                             SSL_FILETYPE_PEM);
+    SSL_use_PrivateKey_file(ss_state->ssl_fd[fd_loc], "server-key.pem",
+                            SSL_FILETYPE_PEM);
+
+    set_nonblock(fd);
+    SSL_set_fd(ss_state->ssl_fd[fd_loc], fd);
+    SSL_accept(ss_state->ssl_fd[fd_loc]);
+    ssl_block_accept(ss_state->ssl_fd[fd_loc], fd);
+
     return fd_loc;
 }
 
@@ -86,7 +104,7 @@ void ss_free() {
     // send a notice to each client that we are going offline and they should
     // attempt a reconnect.
     char *api_msg = apim_create();
-    apim_add_param(api_msg, "SERVER_DISCONNECTED\n", 0);
+    apim_add_param(&api_msg, "SERVER_DISCONNECTED\n", 0);
     sm_propogate_message(ss_state->server_fd, api_msg);
     free(api_msg);
 
@@ -146,7 +164,7 @@ void ss_login_fd(int fd, char *username) {
     if (fd_loc == SS_MAX_CHILDREN) return;
 
     log_debug("ss_login_fd", "applying username to %d", fd_loc);
-    ss_state->active_users[fd_loc] = calloc(1, strlen(username));
+    ss_state->active_users[fd_loc] = calloc(1, strlen(username) + 1);
     strcpy(ss_state->active_users[fd_loc], username);
     log_debug("ss_login_fd", "username applied as %s",
               ss_state->active_users[fd_loc]);
@@ -201,17 +219,37 @@ char *ss_get_active_user_list() {
     return s;
 }
 
-char *ss_get_username(int fd) {
-    char *username = calloc(1, strlen(""));
-    *username = "";
-    if (fd < 0 || fd >= SS_MAX_CHILDREN) return username;
+char **ss_get_username(int fd) {
+    if (fd < 0 || fd >= SS_MAX_CHILDREN) return NULL;
     int fd_loc = 0;
     while (ss_state->child_fd[fd_loc] != fd && fd_loc < SS_MAX_CHILDREN) {
         fd_loc++;
     }
 
-    if (fd_loc == SS_MAX_CHILDREN) return username;
-    free(username);
+    if (fd_loc == SS_MAX_CHILDREN) return NULL;
+    return &ss_state->active_users[fd_loc];
+}
 
-    return ss_state->active_users[fd_loc];
+int ss_get_fd_from_username(char *username) {
+    int fd_loc = 0;
+    while (fd_loc != SS_MAX_CHILDREN &&
+           strcmp(ss_state->active_users[fd_loc], username) != 0) {
+        fd_loc++;
+    }
+
+    if (fd_loc == SS_MAX_CHILDREN) {
+        return -1;
+    }
+
+    return ss_state->child_fd[fd_loc];
+}
+
+int ss_get_fd_loc(int fd) {
+    int fd_loc = 0;
+    while (fd_loc != SS_MAX_CHILDREN && ss_state->child_fd[fd_loc] != fd) {
+        fd_loc++;
+    }
+
+    if (fd_loc == SS_MAX_CHILDREN) return -1;
+    return fd_loc;
 }

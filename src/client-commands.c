@@ -8,6 +8,7 @@
 #include "client-state.h"
 #include "commands.h"
 #include "logger.h"
+#include "ssl-nonblock.h"
 #include "utils.h"
 
 static struct cmd_command_list cmdc_commands;
@@ -16,9 +17,10 @@ int cmdc_exit(char **args, int argc) {
     log_debug("cmdc_exit", "logging out of %d", cs_state.connection_fd);
 
     char *msg = apim_create();
-    apim_add_param(msg, "CLOSE", 0);
-    apim_finish(msg);
-    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    apim_add_param(&msg, "CLOSE", 0);
+    apim_finish(&msg);
+    // send(cs_state.connection_fd, msg, strlen(msg), 0);
+    ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd, msg, strlen(msg));
 
     close(cs_state.connection_fd);
     free(msg);
@@ -51,13 +53,15 @@ int cmdc_login(char **args, int argc) {
 
     log_debug("cmdc_login", "output hash is: %s", out);
 
-    // send register request
+    // send login request
     char *msg = apim_create();
-    apim_add_param(msg, "LOGIN", 0);
-    apim_add_param(msg, args[1], 1);
-    apim_add_param(msg, out, 2);
-    apim_finish(msg);
-    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    apim_add_param(&msg, "LOGIN", 0);
+    apim_add_param(&msg, args[1], 1);
+    apim_add_param(&msg, out, 2);
+    apim_finish(&msg);
+    // send(cs_state.connection_fd, msg, strlen(msg), 0);
+    ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd, msg, strlen(msg));
+
     free(msg);
 
     return 0;
@@ -67,9 +71,11 @@ int cmdc_logout(char **args, int argc) {
     log_debug("cmdc_logout", "entered logout routine");
 
     char *api_msg = apim_create();
-    apim_add_param(api_msg, "LOGOUT", 0);
-    apim_finish(api_msg);
-    send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
+    apim_add_param(&api_msg, "LOGOUT", 0);
+    apim_finish(&api_msg);
+    // send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
+    ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd, api_msg,
+                    strlen(api_msg));
     free(api_msg);
     return 0;
 }
@@ -101,11 +107,12 @@ int cmdc_register(char **args, int argc) {
 
     // send register request
     char *msg = apim_create();
-    apim_add_param(msg, "REGISTER", 0);
-    apim_add_param(msg, args[1], 1);
-    apim_add_param(msg, out, 2);
-    apim_finish(msg);
-    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    apim_add_param(&msg, "REGISTER", 0);
+    apim_add_param(&msg, args[1], 1);
+    apim_add_param(&msg, out, 2);
+    apim_finish(&msg);
+    // send(cs_state.connection_fd, msg, strlen(msg), 0);
+    ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd, msg, strlen(msg));
     free(msg);
 
     return 0;
@@ -115,9 +122,10 @@ int cmdc_users(char **args, int argc) {
     log_debug("cmdc_users", "listing users");
 
     char *msg = apim_create();
-    apim_add_param(msg, "USERS", 0);
-    apim_finish(msg);
-    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    apim_add_param(&msg, "USERS", 0);
+    apim_finish(&msg);
+    // send(cs_state.connection_fd, msg, strlen(msg), 0);
+    ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd, msg, strlen(msg));
     free(msg);
 
     printf("Getting list of users:\n");
@@ -163,16 +171,49 @@ int cmdc_history(char **args, int argc) {
         return 0;
     }
     char *msg = apim_create();
-    apim_add_param(msg, "HISTORY", 0);
-    apim_add_param(msg, args[1], 1);
-    apim_finish(msg);
-    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    apim_add_param(&msg, "HISTORY", 0);
+    apim_add_param(&msg, args[1], 1);
+    apim_finish(&msg);
+    // send(cs_state.connection_fd, msg, strlen(msg), 0);
+    ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd, msg, strlen(msg));
     free(msg);
     return 0;
 }
 int cmdc_server_health_ping(char **args, int argc) {
     log_debug("cmdc_server_health_ping",
               "server pinged client for connection test");
+    return 0;
+}
+
+int cmdc_private_dm(char *msg) {
+    log_debug("cmdc_private_dm", "parsing message '%s'", msg);
+    int idx = 1;
+    while (idx < strlen(msg) && msg[idx] != ' ') {
+        idx++;
+    }
+    int username_size = idx - 1;
+    int dm_size = strlen(msg) - username_size;
+
+    char username[username_size + 1];
+    memcpy(username, &msg[1], username_size);
+    username[username_size] = '\0';
+
+    char dm[dm_size + 1];
+    memcpy(dm, &msg[username_size + 2], dm_size);
+    dm[dm_size] = '\0';
+
+    log_debug("cmdc_private_dm", "sending message to '%s' with content '%s'",
+              username, dm);
+
+    char *api_msg = apim_create();
+    apim_add_param(&api_msg, "DM", 0);
+    apim_add_param(&api_msg, username, 1);
+    apim_add_param(&api_msg, dm, 2);
+    apim_finish(&api_msg);
+    // send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
+    ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd, api_msg,
+                    strlen(api_msg));
+    free(api_msg);
     return 0;
 }
 
@@ -227,7 +268,6 @@ int cmdc_execute_command(char *command) {
 }
 
 int cmdc_execute_server_command(char *command) {
-    utils_clear_newlines(command);
     log_debug("cmdc_execute_server_command", "executing command \"%s\"...",
               command);
 
