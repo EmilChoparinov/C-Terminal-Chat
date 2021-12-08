@@ -2,6 +2,8 @@
 
 This is a socket app built all in C that allows you to connect between multiple users and send messages live to each other.
 
+Link to [repo github](https://github.com/EmilChoparinov/C-Terminal-Chat) for best markdown viewing experience.
+
 # How to Build
 
 Firstly you need to generate some keys. Run the "pems" command in make by doing `make pems` to generate a certificate and a key
@@ -82,3 +84,13 @@ The `docs/` folder that is included in this repository contains architectural in
 [Database](./docs/architecture/database.md)
 
 [Extending The Code](./docs/architecture/continued-development.md)
+
+# Known Issues
+
+Here is a list of known errors and things that need to be flushed out to make the overall experience better.
+
+- Create a third party provider of certificates to secure the ssl certificate being given to the client
+
+- History request is limited due to space
+
+- Server shutdown is not graceful
