@@ -1,4 +1,9 @@
 #include <netinet/in.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+#include <openssl/rsa.h>
+#include <openssl/ssl.h>
+
 #ifndef _CLIENT_STATE_H_
 #define _CLIENT_STATE_H_
 
@@ -25,13 +30,16 @@ struct client_state {
      * @brief hostname in ipv4 format, for display purposes
      *
      */
-    char* ipv4_hostname;
+    char *ipv4_hostname;
 
     /**
      * @brief server connection information
      *
      */
     struct sockaddr_in serv;
+
+    SSL     *ssl_fd;
+    SSL_CTX *ssl_ctx;
 } cs_state;
 
 /**
@@ -39,5 +47,7 @@ struct client_state {
  *
  */
 void cs_reset();
+
+void cs_free();
 
 #endif

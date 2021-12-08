@@ -18,7 +18,7 @@ int cmdc_execute_command(char *command);
 
 /**
  * @brief Executes responses from server
- * 
+ *
  * @param command command name
  * @return int return 0 for expected output, return 1 for failed output
  */
@@ -26,8 +26,15 @@ int cmdc_execute_server_command(char *command);
 
 /**
  * @brief Free all data relating to server commands
- * 
+ *
  */
 void cmdc_free_client_commands();
+
+/**
+ * @brief Send a private message to a specified user
+ *
+ * @param msg message to send to a specified user
+ */
+void cmdc_private_dm(char *msg);
 
 #endif

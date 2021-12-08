@@ -2,6 +2,7 @@
 #define _SERVER_STATE_H_
 
 #include <netinet/in.h>
+#include <openssl/ssl.h>
 
 /**
  * @brief The total amount of allowed connections to this server.
@@ -12,13 +13,18 @@
  * @brief Container of information relating to server operations. Can be used to
  * check connections, remove connections, etc.
  */
-struct server_state {
+typedef struct server_state {
     int                server_fd;
     int                child_count;
     int                child_fd[SS_MAX_CHILDREN];
     int                child_pending[SS_MAX_CHILDREN];
+    char              *active_users[SS_MAX_CHILDREN];
+    SSL               *ssl_fd[SS_MAX_CHILDREN];
+    SSL_CTX           *ssl_ctx[SS_MAX_CHILDREN];
     struct sockaddr_in serv;
-} ss_state;
+} server_state;
+
+server_state *ss_state;
 
 /**
  * @brief Resets the servers state to being empty, as if the program just
@@ -65,5 +71,73 @@ unsigned int ss_get_active_size();
  *
  */
 void ss_free();
+
+/**
+ * @brief Check if a connection is logged in and is allowed to send messages etc
+ *
+ * @param fd The file descriptor to check
+ * @return int 0 if true, 1 if false
+ */
+int ss_is_fd_logged_in(int fd);
+
+/**
+ * @brief Check if a user is logged in already
+ *
+ * @param username The username to check if its logged in
+ * @return int 0 if true, 1 if false
+ */
+int ss_is_user_logged_in(char *username);
+
+/**
+ * @brief Set a connection to logged in
+ *
+ * @param fd the file descriptor to login with
+ * @param username the user that will be logged in here
+ */
+void ss_login_fd(int fd, char *username);
+
+/**
+ * @brief Logout a user
+ *
+ * @param fd the file descriptor to logout of
+ */
+void ss_logout_fd(int fd);
+
+/**
+ * @brief Get a string list of all active users
+ *
+ */
+char *ss_get_active_user_list();
+
+/**
+ * @brief Get the active amount of users logged in and connected
+ *
+ * @return int the count of users
+ */
+int ss_get_active_user_count();
+
+/**
+ * @brief Get the username by the fd
+ *
+ * @param fd fd to lookup
+ * @return char* the username
+ */
+char **ss_get_username(int fd);
+
+/**
+ * @brief Gets the current fd of a logged in user
+ *
+ * @param username username to find
+ * @return int fd
+ */
+int ss_get_fd_from_username(char *username);
+
+/**
+ * @brief Get the internal location of a FD
+ * 
+ * @param fd the fd to find
+ * @return int the location of the FD
+ */
+int ss_get_fd_loc(int fd);
 
 #endif

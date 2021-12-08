@@ -2,6 +2,9 @@
 #include <assert.h>
 #include <errno.h>
 #include <netinet/in.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,14 +16,19 @@
 #include "client-commands.h"
 #include "client-state.h"
 #include "logger.h"
+#include "ssl-nonblock.h"
 #include "utils.h"
 
 static void usage();
+static void ctrl_c_handler(int sig);
 static void setup_server_connection(uint16_t port, const char *host);
 static int  do_server_connection();
 static void establish_server_listener();
 
 int main(int argc, char **argv) {
+    /* signals to catch */
+    signal(SIGINT, ctrl_c_handler);
+
     uint16_t port;
 
     // validate cmd arguments
@@ -32,7 +40,7 @@ int main(int argc, char **argv) {
     // optionally enable debug mode if 3rd paramter was DEBUG
     log_set_debug_mode(1);
     if (argc == 4) {
-        if (strcmp(argv[4], "DEBUG") == 0) {
+        if (strcmp(argv[3], "DEBUG") == 0) {
             log_set_debug_mode(0);
             log_debug("main", "enabling debug mode");
         }
@@ -48,10 +56,13 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    printf("Connected to %s:%s\n", cs_state.ipv4_hostname, argv[1]);
+
     // setup listeners here
     establish_server_listener();
 
     // client cleanup here
+    cs_free();
     close(cs_state.connection_fd);
     cmdc_free_client_commands();
 
@@ -85,8 +96,13 @@ static int do_server_connection() {
 }
 
 static void establish_server_listener() {
-    printf("Connected to %s:%d\n", cs_state.ipv4_hostname,
-           cs_state.serv.sin_port);
+    set_nonblock(cs_state.connection_fd);
+
+    SSL_set_fd(cs_state.ssl_fd, cs_state.connection_fd);
+    ssl_block_connect(cs_state.ssl_fd, cs_state.connection_fd);
+
+    log_debug("establish_server_listener", "SSL context established");
+
     while (1) {
         fd_set readfds;
 
@@ -101,41 +117,85 @@ static void establish_server_listener() {
             return;
         }
 
-        char message[4096] = "";
-        if (FD_ISSET(cs_state.connection_fd, &readfds)) {
-            int n = recv(cs_state.connection_fd, message, sizeof(message), 0);
-            if (n < 0) {
-                printf("error on reading");
-            } else {
-                int should_exit = cmdc_execute_server_command(message);
-                if (should_exit != 0) {
+        int ping_test_max = 3;
+        int ping_i = 0;
+        // receiving server messages
+        if (FD_ISSET(cs_state.connection_fd, &readfds) &&
+            ssl_has_data(cs_state.ssl_fd)) {
+            ping_i++;
+            log_debug("establish_server_listener", "received incoming message");
+            char *message;
+            apim_capture_socket_msg(cs_state.ssl_fd, cs_state.connection_fd,
+                                    &message);
+            log_debug("establish_server_listener", "parsed message as '%s'",
+                      message);
+            int should_exit = cmdc_execute_server_command(message);
+            if (ping_i == ping_test_max) {
+                ping_i = 0;
+                char *health_check = apim_create();
+                apim_add_param(&health_check, "HEALTH", 0);
+                apim_finish(&health_check);
+                int n = ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd,
+                                        health_check, strlen(health_check));
+                log_debug("establish_server_listener", "n write is: %d", n);
+                if (n < 0) {
                     return;
                 }
+            }
+            if (should_exit != 0) {
+                return;
             }
         }
 
+        // sending client messages
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
-            fgets(message, sizeof(message), stdin);
+            log_debug("establish_server_listener", "recieved user input");
+            char *message;
+            message = utils_capture_n_string(stdin, 4096);
             utils_clear_newlines(message);
-            if (cmd_has_command_prop(message) == 0) {
-                int should_exit = cmdc_execute_command(message);
-                if (should_exit != 0) {
-                    return;
-                }
+            if (strlen(message) > 0 && message[0] == '@') {
+                cmdc_private_dm(message);
             } else {
-                char *api_msg = apim_create();
-                apim_add_param(api_msg, "GLOBAL", 0);
-                apim_add_param(api_msg, message, 1);
-                int n =
-                    send(cs_state.connection_fd, api_msg, strlen(api_msg), 0);
-                if (n < 0) {
+                if (cmd_has_command_prop(message) == 0) {
+                    int should_exit = cmdc_execute_command(message);
+                    if (should_exit != 0) {
+                        return;
+                    }
+                } else {
+                    char *api_msg = apim_create();
+                    apim_add_param(&api_msg, "GLOBAL", 0);
+                    apim_add_param(&api_msg, message, 1);
+                    apim_finish(&api_msg);
                     log_debug("establish_server_connection",
-                              "error on writing");
+                              "sending api msg:\n%s", api_msg);
+                    int n =
+                        ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd,
+                                        api_msg, strlen(api_msg));
+                    if (n < 0) {
+                        log_debug("establish_server_connection",
+                                  "error on writing");
+                        printf("Server is unavailable, closing client");
+                        exit(0);
+                    }
+                    free(api_msg);
                 }
-                free(api_msg);
             }
+            free(message);
         }
     }
+}
+
+static void ctrl_c_handler(int sig) {
+    log_debug("ctrl_c_handler", "caught a ctrl operation, cleaning up...");
+    char *msg = apim_create();
+    apim_add_param(&msg, "CLOSE", 0);
+    send(cs_state.connection_fd, msg, strlen(msg), 0);
+    apim_finish(&msg);
+    free(msg);
+    cs_free();
+    close(cs_state.connection_fd);
+    cmdc_free_client_commands();
+    exit(0);
 }
 
 static void usage() {

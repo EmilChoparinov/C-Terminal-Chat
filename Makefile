@@ -1,8 +1,7 @@
 CC = gcc
 CXXFLAGS = -std=c11 -Wall
-LDFLAGS = 
+LDFLAGS = -lsqlite3 -lcrypto -lssl
 CFLAGS=-g -Wall -Werror -UDEBUG
-LDLIBS=-lsqlite3 -lcrypto -lssl
 
 EXT = .c
 SRCDIR = src
@@ -37,9 +36,19 @@ $(OBJDIR)/%.o: $(SRCDIR)/%$(EXT)
 	$(CC) $(CXXFLAGS) -o $@ -c $<
 
 .PHONY: clean
-clean: clean-server clean-client
+clean: clean-server clean-client clean-db
 	rm $(wildcard $(OBJDIR)/*.o) $(wildcard *.d)
 clean-server:
 	rm server
 clean-client:
 	rm client
+clean-db:
+	rm secure-chat.db
+
+pems: server-key.pem server-self-cert.pem
+
+server-key.pem:
+	openssl genrsa -out server-key.pem
+
+server-self-cert.pem:
+	openssl req -x509 -key server-key.pem -out server-self-cert.pem -nodes -subj '/CN=server\.example\.com/'
