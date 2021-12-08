@@ -62,3 +62,11 @@ char **apim_parse_args(char *s);
  * @param argc count of arguments
  */
 void apim_free_args(char **args, int argc);
+
+/**
+ * @brief Checks the validity of a string
+ * 
+ * @param s the api string
+ * @return int 0 = good, 1 = bad
+ */
+int apim_is_valid(char *s);

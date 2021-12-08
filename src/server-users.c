@@ -128,7 +128,6 @@ int su_validate_login(char *username, char *password) {
 
 int su_get_uid(char *username) {
     log_debug("su_get_id", "getting uid of \"%s\"", username);
-    return 1;
     sqlite3_stmt *query;
 
     int err = sqlite3_prepare_v2(
@@ -139,11 +138,13 @@ int su_get_uid(char *username) {
         return -1;
     }
 
+    sqlite3_bind_text(query, 1, username, -1, SQLITE_TRANSIENT);
+
     int resp = sqlite3_step(query);
+    log_debug("su_get_id", "responded with: %d", resp);
     if (resp == SQLITE_ROW) {
-        log_debug("su_get_id", "doing sql process");
-        int val = (int)sqlite3_column_int(query, 0);
-        log_debug("su_get_uid", "user \"%s\" has id \"%s\"", username, val);
+        int val = sqlite3_column_int(query, 0);
+        log_debug("su_get_id", "retrieved uid %d", val);
         return val;
     }
 

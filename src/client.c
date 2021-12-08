@@ -56,6 +56,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    printf("Connected to %s:%s\n", cs_state.ipv4_hostname, argv[1]);
+
     // setup listeners here
     establish_server_listener();
 
@@ -94,9 +96,6 @@ static int do_server_connection() {
 }
 
 static void establish_server_listener() {
-    printf("Connected to %s:%d\n", cs_state.ipv4_hostname,
-           cs_state.serv.sin_port);
-
     set_nonblock(cs_state.connection_fd);
 
     SSL_set_fd(cs_state.ssl_fd, cs_state.connection_fd);
@@ -118,8 +117,12 @@ static void establish_server_listener() {
             return;
         }
 
+        int ping_test_max = 3;
+        int ping_i = 0;
+        // receiving server messages
         if (FD_ISSET(cs_state.connection_fd, &readfds) &&
             ssl_has_data(cs_state.ssl_fd)) {
+            ping_i++;
             log_debug("establish_server_listener", "received incoming message");
             char *message;
             apim_capture_socket_msg(cs_state.ssl_fd, cs_state.connection_fd,
@@ -127,11 +130,24 @@ static void establish_server_listener() {
             log_debug("establish_server_listener", "parsed message as '%s'",
                       message);
             int should_exit = cmdc_execute_server_command(message);
+            if (ping_i == ping_test_max) {
+                ping_i = 0;
+                char *health_check = apim_create();
+                apim_add_param(&health_check, "HEALTH", 0);
+                apim_finish(&health_check);
+                int n = ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd,
+                                        health_check, strlen(health_check));
+                log_debug("establish_server_listener", "n write is: %d", n);
+                if (n < 0) {
+                    return;
+                }
+            }
             if (should_exit != 0) {
                 return;
             }
         }
 
+        // sending client messages
         if (FD_ISSET(STDIN_FILENO, &readfds)) {
             log_debug("establish_server_listener", "recieved user input");
             char *message;
@@ -152,9 +168,6 @@ static void establish_server_listener() {
                     apim_finish(&api_msg);
                     log_debug("establish_server_connection",
                               "sending api msg:\n%s", api_msg);
-                    // int n = send(cs_state.connection_fd, api_msg,
-                    //              strlen(api_msg), 0);
-                    // int n = SSL_write(ssl, api_msg, strlen(api_msg));
                     int n =
                         ssl_block_write(cs_state.ssl_fd, cs_state.connection_fd,
                                         api_msg, strlen(api_msg));

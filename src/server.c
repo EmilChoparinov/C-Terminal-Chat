@@ -5,6 +5,7 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +46,7 @@ int main(int argc, char **argv) {
     }
 
     // optionally enable debug mode if 2nd parameter was DEBUG
-    log_set_debug_mode(1);
+    log_set_debug_mode(0);
     if (argc == 3) {
         if (strcmp(argv[2], "DEBUG") == 0) {
             log_set_debug_mode(0);
@@ -62,7 +63,8 @@ int main(int argc, char **argv) {
     create_server(port);
     bind(ss_state->server_fd, (struct sockaddr *)&ss_state->serv,
          sizeof(ss_state->serv));
-    printf("Listening for connections on port %s\n", argv[2]);
+    printf("Listening for connections on port %s\n", argv[1]);
+    printf("Type 'q' to close server\n");
 
     // setup listeners here
     listen_for_connections();
@@ -124,26 +126,27 @@ static void listen_for_connections() {
             // if child connection exists and has incomming data, process
             if (child_fd != -1 && FD_ISSET(child_fd, &readfds) &&
                 ssl_has_data(ss_state->ssl_fd[fd_loc])) {
+                // capture and interpret message
                 char *message;
                 apim_capture_socket_msg(ss_state->ssl_fd[fd_loc], child_fd,
                                         &message);
                 log_debug("listen_for_connections",
                           "recieved message \"%s\" from %d", message, child_fd);
 
+                // create a health checker to ensure later commands are
+                // writeable
                 char *health_check = apim_create();
                 apim_add_param(&health_check, "HEALTH", 0);
                 apim_finish(&health_check);
                 int n = ssl_block_write(ss_state->ssl_fd[fd_loc], child_fd,
                                         health_check, strlen(health_check));
-                // int n = SSL_write(ss_state->ssl_fd[fd_loc], health_check,
-                //   strlen(health_check));
-                // int n = send(child_fd, health_check, strlen(health_check),
-                // 0);
-                log_debug("apim_capture_socket_msg", "n value on SEND: %d", n);
+
+                // pass health checks, empty messages close the socket
+                log_debug("listen_for_connections", "n value on SEND: %d", n);
                 if (n < 0) {
-                    log_debug("apim_capture_socket_msg", "tunnel is dead");
+                    log_debug("listen_for_connections", "tunnel is dead");
                     cmdh_execute_command("||CLOSE", child_fd);
-                } else if (message[0] == '\0') {  // default to close
+                } else if (message[0] == '\0') {
                     cmdh_execute_command("||CLOSE", child_fd);
                 } else {
                     cmdh_execute_command(message, child_fd);
@@ -176,5 +179,5 @@ static void create_server(uint16_t port) {
 
 static void usage() {
     printf("usage:\n");
-    printf("\t [port] [DEBUG]\n");
+    printf("\t [port] [DEBUG MODE]\n");
 }

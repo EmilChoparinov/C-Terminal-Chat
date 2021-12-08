@@ -9,3 +9,5 @@ secure-chat.db
 # personal
 .vscode/
 group.txt
+
+*.pem

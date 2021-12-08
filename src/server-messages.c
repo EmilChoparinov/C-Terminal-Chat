@@ -71,3 +71,37 @@ int sm_global_save_message(char *message, int uid, char *created_at) {
     sqlite3_finalize(query);
     return 0;
 }
+
+int sm_pm_save_message(char *message, int from_uid, int to_uid,
+                       char *created_at) {
+    log_debug("sm_pm_save_message", "entered save pm");
+    if (sic_is_sql_ok(message) != 0) return MSG_SAVE_FAILED;
+
+    sqlite3_stmt *query;
+
+    int sql_err = sqlite3_prepare_v2(
+        db_conn,
+        "INSERT INTO message(from_user,message,is_dm,to_user,created_at) "
+        "VALUES (?,?,?,?,?)",
+        -1, &query, NULL);
+    if (sql_err != SQLITE_OK) {
+        log_debug("sm_pm_save_message", "SQL Error Occured Code '%d': %s",
+                  sql_err, sqlite3_errmsg(db_conn));
+    }
+
+    log_debug("sm_pm_save_message",
+              "saving to DB with current "
+              "information:from_user:%d\nmessage:%s\nis_dm:%d\nto_user:%d\n"
+              "created_at:%s\n",
+              from_uid, message, 0, to_uid, created_at);
+
+    sqlite3_bind_int(query, 1, from_uid);
+    sqlite3_bind_text(query, 2, message, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(query, 3, 0);
+    sqlite3_bind_int(query, 4, to_uid);
+    sqlite3_bind_text(query, 5, created_at, -1, SQLITE_TRANSIENT);
+
+    sqlite3_step(query);
+    sqlite3_finalize(query);
+    return 0;
+}

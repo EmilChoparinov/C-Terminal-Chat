@@ -45,7 +45,7 @@ clean-client:
 clean-db:
 	rm secure-chat.db
 
-ssl: server-key.pem server-self-cert.pem
+pems: server-key.pem server-self-cert.pem
 
 server-key.pem:
 	openssl genrsa -out server-key.pem

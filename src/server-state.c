@@ -210,7 +210,7 @@ char *ss_get_active_user_list() {
             int   str_size = strlen(ss_state->active_users[i]) + 1;
             char *str_copy = calloc(1, str_size);
             strcpy(str_copy, ss_state->active_users[i]);
-            str_copy[str_size - 1] = ' ';
+            str_copy[str_size - 1] = '\n';
             strcat(s, str_copy);
         }
     }

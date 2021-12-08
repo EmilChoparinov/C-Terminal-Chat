@@ -1,14 +1,26 @@
+#include "api-messages.h"
+
 #include <ctype.h>
 #include <openssl/ssl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 
+#include "ctype.h"
 #include "logger.h"
 #include "ssl-nonblock.h"
 #include "string.h"
 #include "utils.h"
 
+//---- STATIC FUNCTIONS --------------------------------------------------------
+/**
+ * @brief Gets the index of a specific argumnts position
+ *
+ * @param s string message
+ * @param argc which argument
+ * @return int the index
+ */
 static int argc_to_pos(char *s, int argc) {
     int pos = 0, args_seen = 0, pipes_seen_in_row = 0;
 
@@ -33,7 +45,10 @@ static int argc_to_pos(char *s, int argc) {
     return pos;
 }
 
+//---- DECLARED FUNCTIONS ------------------------------------------------------
 void apim_add_param(char **s, char *param, int argc) {
+    // we will always resize/reallocate the string to ensure we have used up the
+    // correct amount of memory
     char *arg = malloc(sizeof(char) * 1);
     arg[0] = '\0';
     utils_append(&arg, "||");
@@ -44,9 +59,10 @@ void apim_add_param(char **s, char *param, int argc) {
 }
 
 char *apim_create() {
+    // we don't know the size of the api string at this point so the beginning
+    // will just be null characters
     char *msg = malloc(sizeof(char) * 1);
     msg[0] = '\0';
-
     return msg;
 }
 
@@ -157,10 +173,9 @@ void apim_finish(char **s) {
 }
 
 void apim_capture_socket_msg(SSL *ssl, int fd, char **m_out) {
+    // default message size
     char msg[99999];
-    // int  n = recv(fd, msg, sizeof(msg), 0);
-    // int n = SSL_read(ssl, msg, strlen(msg));
-    int n = ssl_block_read(ssl, fd, msg, sizeof(msg));
+    int  n = ssl_block_read(ssl, fd, msg, sizeof(msg));
     log_debug("apim_capture_socket_msg", "n value on RECV: %d", n);
     if (n < 0) {
         log_debug("apim_capture_socket_msg",
@@ -188,4 +203,49 @@ void apim_capture_socket_msg(SSL *ssl, int fd, char **m_out) {
     (*m_out)[atoi(api_msg_len)] = '\0';
 
     log_debug("apim_capture_socket_msg", "completed message is: %s", *m_out);
+}
+
+int apim_is_valid(char *s) {
+    // An API string is valid if it is:
+    //      - longer than 0 character
+    //      - starts only with digits until pipes
+    //      - each argument is > 0 in length
+    //      - the char count in the beginning api message is not the correct
+    //        length
+
+    // longer than 0
+    int s_size = strlen(s);
+    if (s_size == 0) return 1;
+
+    // starts with only digits until a pipe is seen
+    int idx = 0;
+    printf("%d", isdigit(s[idx]));
+    while (s[idx] != '|' && isdigit(s[idx]) != 0 && idx < s_size) idx++;
+    if (idx == 0) return 1;
+
+    char count_str[idx];
+    memcpy(count_str, &s[0], idx);
+    int arg_size = atoi(count_str);
+
+    // each argument is > 0 in length
+    idx = 0;
+    int argc = 0;
+    int consc_pipes = 0;
+    while (idx < s_size) {
+        if (s[idx] == '|')
+            consc_pipes++;
+        else if (consc_pipes == 2) {
+            if (argc == 0) return 1;
+            argc = 0;
+            consc_pipes = 0;
+        } else
+            argc++;
+
+        idx++;
+    }
+
+    if (strlen(count_str) + arg_size != s_size) {
+        return 1;
+    }
+    return 0;
 }
