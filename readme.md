@@ -77,5 +77,8 @@ The `docs/` folder that is included in this repository contains architectural in
 
 [Networking Architecture](./docs/architecture/networking.md)
 
+[Security](./docs/architecture/security.md)
+
+[Database](./docs/architecture/database.md)
 
 [Extending The Code](./docs/architecture/continued-development.md)
