@@ -7,6 +7,7 @@
 
 #include "logger.h"
 
+// poop
 int sdb_setup() {
     int is_db_new = access("secure-chat.db", F_OK);
 
